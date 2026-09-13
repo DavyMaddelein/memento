@@ -66,7 +66,15 @@ private sealed interface Screen {
     data object Record : Screen
     data object Collection : Screen
     data object Places : Screen
-    data class Detail(val memento: Memento) : Screen
+    data class Detail(val memento: Memento, val from: DetailOrigin) : Screen
+}
+
+/** Where a [Screen.Detail] was opened from, so Back/Delete return there. */
+private enum class DetailOrigin { TIMELINE, PLACES }
+
+private fun detailBackDestination(origin: DetailOrigin): Screen = when (origin) {
+    DetailOrigin.TIMELINE -> Screen.Timeline
+    DetailOrigin.PLACES -> Screen.Places
 }
 
 /**
@@ -281,8 +289,8 @@ private fun MementoApp() {
                     onSearchQueryChanged = timelineViewModel::onSearchQueryChanged,
                     onTagToggled = timelineViewModel::onFilterTagToggled,
                     onSortSelected = timelineViewModel::onSortOrderSelected,
-                    onMementoClick = { memento -> screen = Screen.Detail(memento) },
-                    onDeleteMemento = timelineViewModel::onDeleteMemento,
+                        onMementoClick = { memento -> screen = Screen.Detail(memento, DetailOrigin.TIMELINE) },
+                        onDeleteMemento = timelineViewModel::onDeleteMemento,
                     onUndoDelete = timelineViewModel::onRestoreMemento,
                     onAddMemento = {
                         recordViewModel.reset()
@@ -330,8 +338,8 @@ private fun MementoApp() {
                 Screen.Places -> PlacesScreen(
                     state = placesState,
                     images = { memento -> timelineImages[memento.id.value].orEmpty() },
-                    onMementoClick = { memento -> screen = Screen.Detail(memento) },
-                    onBack = { screen = Screen.Timeline },
+                        onMementoClick = { memento -> screen = Screen.Detail(memento, DetailOrigin.PLACES) },
+                        onBack = { screen = Screen.Timeline },
                 )
 
                 is Screen.Detail -> {
@@ -339,14 +347,14 @@ private fun MementoApp() {
                     MementoDetailScreen(
                         memento = memento,
                         images = timelineImages[memento.id.value].orEmpty(),
-                        onBack = { screen = Screen.Timeline },
+                        onBack = { screen = detailBackDestination(current.from) },
                         onEdit = {
                             recordViewModel.loadForEdit(memento)
                             screen = Screen.Record
                         },
                         onDelete = {
                             timelineViewModel.onDeleteMemento(memento.id)
-                            screen = Screen.Timeline
+                            screen = detailBackDestination(current.from)
                             scope.launch {
                                 val result = snackbarHostState.showSnackbar(
                                     message = "Keepsake deleted",
