@@ -302,6 +302,7 @@ private fun MementoApp() {
                         item.brand?.let(recordViewModel::onBrandChanged)
                         screen = Screen.Record
                     },
+                    onAcknowledgeEarned = collectionViewModel::acknowledgeEarned,
                 )
             }
         }

@@ -191,6 +191,7 @@ fun App() {
                             graph.recordViewModel.onCollectionToggled(KonbiniDrinkChecklist.COLLECTION_ID)
                             screen = Screen.Record
                         },
+                        onAcknowledgeEarned = graph.collectionViewModel::acknowledgeEarned,
                     )
                 }
             }

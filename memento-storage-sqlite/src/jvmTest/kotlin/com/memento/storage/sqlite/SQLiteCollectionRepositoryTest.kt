@@ -1,6 +1,8 @@
 package com.memento.storage.sqlite
 
+import com.memento.domain.model.ChecklistItem
 import com.memento.domain.model.Collection
+import com.memento.domain.model.CollectionCategory
 import com.memento.domain.model.CollectionId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -113,5 +115,46 @@ class SQLiteCollectionRepositoryTest {
 
         val fresh = SQLiteCollectionRepository(driver)
         assertEquals(collection, fresh.getCollection(CollectionId("persisted")))
+    }
+
+    @Test
+    fun achievementFieldsRoundTripThroughNewRepository() = runTest {
+        val driver = newInMemoryDriver()
+        val collection = fullCollection(id = "achievements").copy(
+            metaAchievementName = "Konbini Grandmaster",
+            metaAchievementDescription = "Tasted every drink on the list",
+            categories = listOf(
+                CollectionCategory("cat1", "Coffee", bonusPoints = 40),
+                CollectionCategory("cat2", "Tea", bonusPoints = 15),
+            ),
+            items = listOf(
+                ChecklistItem(
+                    id = "item1",
+                    label = "Boss Coffee Rainbow Mountain",
+                    categoryId = "cat1",
+                    brand = "Suntory",
+                    matchTags = listOf("boss", "rainbow"),
+                    points = 30,
+                ),
+                ChecklistItem(
+                    id = "item2",
+                    label = "Oi Ocha",
+                    categoryId = "cat2",
+                    brand = "Ito En",
+                    points = 5,
+                ),
+            ),
+        )
+
+        SQLiteCollectionRepository(driver).saveCollection(collection).getOrThrow()
+
+        val loaded = SQLiteCollectionRepository(driver).getCollection(CollectionId("achievements"))
+        assertEquals(collection, loaded)
+        assertEquals("Konbini Grandmaster", loaded?.metaAchievementName)
+        assertEquals("Tasted every drink on the list", loaded?.metaAchievementDescription)
+        assertEquals(40, loaded?.categories?.first { it.id == "cat1" }?.bonusPoints)
+        assertEquals(15, loaded?.categories?.first { it.id == "cat2" }?.bonusPoints)
+        assertEquals(30, loaded?.items?.first { it.id == "item1" }?.points)
+        assertEquals(5, loaded?.items?.first { it.id == "item2" }?.points)
     }
 }

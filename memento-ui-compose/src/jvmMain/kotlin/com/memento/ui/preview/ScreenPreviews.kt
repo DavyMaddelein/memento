@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.memento.domain.collection.achievementBoard
 import com.memento.domain.collection.progress
 import com.memento.domain.model.ChecklistItem
 import com.memento.domain.model.Collection
@@ -207,9 +208,48 @@ private fun CollectionDetailScreenPreview() {
                 collection = sampleCollection,
                 progress = sampleCollection.progress(listOf(bossCoffee)),
                 isLoading = false,
+                board = sampleCollection.achievementBoard(listOf(bossCoffee)),
             ),
             onBack = {},
             onRecordItem = {},
+        )
+    }
+}
+
+/** Partially earned board: both coffee items and the coffee category are done, snacks are locked. */
+@Preview
+@Composable
+private fun CollectionDetailAchievementsPartialPreview() {
+    MementoTheme {
+        CollectionDetailScreen(
+            state = CollectionProgressUiState(
+                collection = sampleCollection,
+                progress = sampleCollection.progress(listOf(bossCoffee)),
+                isLoading = false,
+                board = sampleCollection.achievementBoard(listOf(bossCoffee)),
+            ),
+            onBack = {},
+            onRecordItem = {},
+            onAcknowledgeEarned = {},
+        )
+    }
+}
+
+/** Every achievement locked: no mementos cover the checklist yet. */
+@Preview
+@Composable
+private fun CollectionDetailAchievementsLockedPreview() {
+    MementoTheme {
+        CollectionDetailScreen(
+            state = CollectionProgressUiState(
+                collection = sampleCollection,
+                progress = sampleCollection.progress(emptyList()),
+                isLoading = false,
+                board = sampleCollection.achievementBoard(emptyList()),
+            ),
+            onBack = {},
+            onRecordItem = {},
+            onAcknowledgeEarned = {},
         )
     }
 }
