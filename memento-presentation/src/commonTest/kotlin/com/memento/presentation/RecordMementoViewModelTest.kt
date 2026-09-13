@@ -5,8 +5,10 @@ package com.memento.presentation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
+import com.memento.platform.contract.ResolvedPlace
 import com.memento.platform.contract.fakes.FakeLocationProvider
 import com.memento.platform.contract.fakes.FakePhotoPickerService
+import com.memento.platform.contract.fakes.FakeReverseGeocodingService
 import com.memento.storage.memory.InMemoryAssetStore
 import com.memento.storage.memory.InMemoryMementoRepository
 import kotlinx.coroutines.flow.first
@@ -228,6 +230,117 @@ class RecordMementoViewModelTest {
         val persisted = repository.observeAllMementos().first()
         assertEquals(1, persisted.size)
         assertEquals("New Title", persisted.single().title)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun geocodingFillsBlankPlaceFields() = runTest {
+        val geocoder = FakeReverseGeocodingService(
+            result = Result.success(
+                ResolvedPlace(
+                    name = "Shibuya Station",
+                    neighborhood = "Dogenzaka",
+                    city = "Shibuya",
+                    country = "Japan",
+                    displayName = "Shibuya Station, Shibuya, Tokyo, Japan",
+                ),
+            ),
+        )
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = InMemoryMementoRepository(),
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            reverseGeocodingService = geocoder,
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onFetchLocationClicked()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertNotNull(state.coordinates)
+        assertEquals("Shibuya Station", state.placeName)
+        assertEquals("Shibuya", state.city)
+        assertFalse(state.isResolvingPlace)
+        assertFalse(state.placeLookupFailed)
+        assertEquals(1, geocoder.callCount)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun geocodingDoesNotOverwriteTypedFields() = runTest {
+        val geocoder = FakeReverseGeocodingService(
+            result = Result.success(ResolvedPlace(name = "Shibuya Station", city = "Shibuya")),
+        )
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = InMemoryMementoRepository(),
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            reverseGeocodingService = geocoder,
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onPlaceNameChanged("My Place")
+        viewModel.onCityChanged("My City")
+        viewModel.onBrandChanged("My Brand")
+        viewModel.onFetchLocationClicked()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals("My Place", state.placeName)
+        assertEquals("My City", state.city)
+        assertEquals("My Brand", state.brand)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun geocodingFailureKeepsCoordinatesAndFlagsSoftFailure() = runTest {
+        val geocoder = FakeReverseGeocodingService(
+            result = Result.failure(IllegalStateException("offline")),
+        )
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = InMemoryMementoRepository(),
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            reverseGeocodingService = geocoder,
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onFetchLocationClicked()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertNotNull(state.coordinates)
+        assertTrue(state.placeLookupFailed)
+        assertFalse(state.isResolvingPlace)
+        assertTrue(state.errors.none { it.field == "location" })
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun noGeocodingServiceLeavesNoLookupFailure() = runTest {
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = InMemoryMementoRepository(),
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onFetchLocationClicked()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertNotNull(state.coordinates)
+        assertFalse(state.placeLookupFailed)
+        assertFalse(state.isResolvingPlace)
 
         viewModel.dispose()
         advanceUntilIdle()

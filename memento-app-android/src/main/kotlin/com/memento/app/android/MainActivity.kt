@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.memento.domain.collection.KonbiniDrinkChecklist
 import com.memento.domain.model.Memento
 import com.memento.platform.android.AndroidPhotoPickerService
+import com.memento.platform.android.androidReverseGeocodingService
 import com.memento.portability.ConflictPolicy
 import com.memento.portability.ZipExportEngine
 import com.memento.portability.ZipImportEngine
@@ -106,6 +107,7 @@ private fun MementoApp() {
             assetStore = graph.assetStore,
             locationProvider = graph.locationProvider,
             photoPicker = AndroidPhotoPickerService(photoLauncher, graph.mediaStorageService),
+            reverseGeocodingService = androidReverseGeocodingService(),
         )
     }
     val collectionViewModel = remember {
