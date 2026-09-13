@@ -7,6 +7,8 @@ import com.memento.domain.util.randomId
 import com.memento.platform.contract.LocationProvider
 import com.memento.platform.contract.MediaStorageService
 import com.memento.platform.contract.PhotoPickerService
+import com.memento.platform.contract.ResolvedPlace
+import com.memento.platform.contract.ReverseGeocodingService
 import kotlinx.datetime.Clock
 
 /**
@@ -56,6 +58,30 @@ class FakePhotoPickerService(
     override suspend fun launchGallery(): Result<List<MediaReference>> {
         galleryCalls++
         return galleryResult
+    }
+}
+
+/**
+ * Configurable [ReverseGeocodingService] for deterministic tests. The default result models a
+ * successful lookup of Shibuya Station.
+ */
+class FakeReverseGeocodingService(
+    var result: Result<ResolvedPlace> = Result.success(
+        ResolvedPlace(
+            name = "Shibuya Station",
+            neighborhood = "Dogenzaka",
+            city = "Shibuya",
+            country = "Japan",
+            displayName = "Shibuya Station, Shibuya, Tokyo, Japan",
+        ),
+    ),
+) : ReverseGeocodingService {
+    var callCount: Int = 0
+        private set
+
+    override suspend fun reverseGeocode(coordinates: Coordinates): Result<ResolvedPlace> {
+        callCount++
+        return result
     }
 }
 

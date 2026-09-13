@@ -197,6 +197,25 @@ fun RecordMementoScreen(
                     )
                 }
             }
+            when {
+                state.isResolvingPlace -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(
+                        text = "Looking up place…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                state.placeLookupFailed -> Text(
+                    text = "Couldn't fetch place details — enter the name manually.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             FieldErrors(errorsByField["location"])
 
             OutlinedTextField(

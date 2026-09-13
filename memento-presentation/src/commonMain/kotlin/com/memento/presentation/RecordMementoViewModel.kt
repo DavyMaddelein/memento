@@ -15,6 +15,8 @@ import com.memento.domain.validation.MementoValidator
 import com.memento.domain.validation.ValidationViolation
 import com.memento.platform.contract.LocationProvider
 import com.memento.platform.contract.PhotoPickerService
+import com.memento.platform.contract.ResolvedPlace
+import com.memento.platform.contract.ReverseGeocodingService
 import com.memento.storage.contract.AssetStore
 import com.memento.storage.contract.MementoRepository
 import kotlinx.coroutines.CoroutineScope
@@ -44,7 +46,12 @@ data class RecordMementoUiState(
     val errors: List<ValidationViolation> = emptyList(),
     val isSaving: Boolean = false,
     val savedMementoId: MementoId? = null,
+    val isResolvingPlace: Boolean = false,
+    val placeLookupFailed: Boolean = false,
 )
+
+/** Convenience-store chains recognised in a reverse-geocoded place name. */
+private val KNOWN_BRANDS = listOf("7-Eleven", "Lawson", "FamilyMart", "MiniStop", "Daily Yamazaki")
 
 /**
  * MVI ViewModel driving the "record a memento" form: media capture, location acquisition, place
@@ -55,6 +62,7 @@ class RecordMementoViewModel(
     private val assetStore: AssetStore? = null,
     private val locationProvider: LocationProvider,
     private val photoPicker: PhotoPickerService,
+    private val reverseGeocodingService: ReverseGeocodingService? = null,
     private val scope: CoroutineScope = defaultViewModelScope(),
 ) {
     private val _state = MutableStateFlow(RecordMementoUiState())
@@ -110,7 +118,9 @@ class RecordMementoViewModel(
                     _state.value = _state.value.copy(
                         coordinates = coordinates,
                         isFetchingLocation = false,
+                        placeLookupFailed = false,
                     )
+                    resolvePlace(coordinates)
                 },
                 onFailure = { error ->
                     _state.value = _state.value.copy(
@@ -125,16 +135,53 @@ class RecordMementoViewModel(
         }
     }
 
+    /**
+     * Optional second step: turn the coordinates into place details via a free geocoding service.
+     * Best-effort by design — it only fills blank fields and, when it fails (offline, timeout,
+     * rate limited), it just flags [RecordMementoUiState.placeLookupFailed]. Coordinates are never
+     * discarded, so the keep can still be saved by typing the place manually.
+     */
+    private fun resolvePlace(coordinates: Coordinates) {
+        val service = reverseGeocodingService ?: return
+        _state.value = _state.value.copy(isResolvingPlace = true, placeLookupFailed = false)
+        scope.launch {
+            service.reverseGeocode(coordinates).fold(
+                onSuccess = { place ->
+                    _state.value = _state.value.copy(
+                        isResolvingPlace = false,
+                        placeName = _state.value.placeName.ifBlank {
+                            place.name ?: place.neighborhood ?: place.city ?: ""
+                        },
+                        city = _state.value.city.ifBlank { place.city ?: "" },
+                        brand = _state.value.brand.ifBlank { knownBrandIn(place) ?: "" },
+                    )
+                },
+                onFailure = {
+                    _state.value = _state.value.copy(
+                        isResolvingPlace = false,
+                        placeLookupFailed = true,
+                    )
+                },
+            )
+        }
+    }
+
+    private fun knownBrandIn(place: ResolvedPlace): String? {
+        val haystack = listOfNotNull(place.name, place.displayName).joinToString(" ").lowercase()
+        if (haystack.isEmpty()) return null
+        return KNOWN_BRANDS.firstOrNull { haystack.contains(it.lowercase()) }
+    }
+
     fun onPlaceNameChanged(value: String) {
-        _state.value = _state.value.copy(placeName = value)
+        _state.value = _state.value.copy(placeName = value, placeLookupFailed = false)
     }
 
     fun onBrandChanged(value: String) {
-        _state.value = _state.value.copy(brand = value)
+        _state.value = _state.value.copy(brand = value, placeLookupFailed = false)
     }
 
     fun onCityChanged(value: String) {
-        _state.value = _state.value.copy(city = value)
+        _state.value = _state.value.copy(city = value, placeLookupFailed = false)
     }
 
     fun onTitleChanged(value: String) {

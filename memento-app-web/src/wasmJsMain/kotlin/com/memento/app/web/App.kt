@@ -33,6 +33,7 @@ import com.memento.platform.web.WebIndexedDbMementoRepository
 import com.memento.platform.web.WebMediaStorageService
 import com.memento.platform.web.downloadBytes
 import com.memento.platform.web.pickZipFile
+import com.memento.platform.web.webReverseGeocodingService
 import com.memento.portability.ConflictPolicy
 import com.memento.portability.ZipExportEngine
 import com.memento.portability.ZipImportEngine
@@ -76,6 +77,7 @@ private class AppGraph(scope: CoroutineScope) {
         assetStore = assetStore,
         locationProvider = locationProvider,
         photoPicker = photoPicker,
+        reverseGeocodingService = webReverseGeocodingService(),
         scope = scope,
     )
     val collectionViewModel = CollectionDetailViewModel(
