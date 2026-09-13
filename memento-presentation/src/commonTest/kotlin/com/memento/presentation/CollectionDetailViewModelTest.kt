@@ -13,6 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class CollectionDetailViewModelTest {
     @Test
@@ -91,6 +92,70 @@ class CollectionDetailViewModelTest {
         assertFalse(state.isLoading)
         assertEquals(collection.id, state.collection?.id)
         assertNotNull(state.progress)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun initialLoadDoesNotPopulateRecentlyEarnedAndExposesBoard() = runTest {
+        val collection = KonbiniDrinkChecklist.create(Instant.fromEpochMilliseconds(0))
+        val collectionRepository = InMemoryCollectionRepository()
+        collectionRepository.saveCollection(collection)
+        val mementoRepository = InMemoryMementoRepository()
+        val viewModel = CollectionDetailViewModel(
+            collectionRepository = collectionRepository,
+            mementoRepository = mementoRepository,
+            scope = newViewModelScope(),
+        )
+
+        viewModel.selectCollection(collection.id)
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(state.recentlyEarned.isEmpty())
+        val board = assertNotNull(state.board)
+        assertEquals(31, board.totalCount)
+        assertEquals(0, board.earnedCount)
+        assertNotNull(board.meta)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun addingCompletingMementoPopulatesRecentlyEarnedUntilAcknowledged() = runTest {
+        val collection = KonbiniDrinkChecklist.create(Instant.fromEpochMilliseconds(0))
+        val collectionRepository = InMemoryCollectionRepository()
+        collectionRepository.saveCollection(collection)
+        val mementoRepository = InMemoryMementoRepository()
+        val viewModel = CollectionDetailViewModel(
+            collectionRepository = collectionRepository,
+            mementoRepository = mementoRepository,
+            scope = newViewModelScope(),
+        )
+
+        viewModel.selectCollection(collection.id)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.recentlyEarned.isEmpty())
+
+        mementoRepository.saveMemento(
+            testMemento(id = "boss-rainbow", tags = listOf("boss-rainbow")),
+        )
+        advanceUntilIdle()
+
+        val earned = viewModel.state.value.recentlyEarned
+        assertEquals(listOf("item:boss-rainbow"), earned.map { it.id })
+        assertTrue(earned.single().earned)
+
+        viewModel.acknowledgeEarned()
+        assertTrue(viewModel.state.value.recentlyEarned.isEmpty())
+
+        mementoRepository.saveMemento(
+            testMemento(id = "unrelated", title = "Something unrelated"),
+        )
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.recentlyEarned.isEmpty())
 
         viewModel.dispose()
         advanceUntilIdle()

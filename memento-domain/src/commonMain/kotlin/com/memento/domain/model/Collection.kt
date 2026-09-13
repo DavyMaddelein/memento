@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 data class CollectionCategory(
     val id: String,
     val name: String,
+    val bonusPoints: Int = 25,
 ) {
     init {
         require(id.isNotBlank()) { "CollectionCategory id must not be blank" }
@@ -27,6 +28,7 @@ data class ChecklistItem(
     val categoryId: String? = null,
     val brand: String? = null,
     val matchTags: List<String> = emptyList(),
+    val points: Int = 10,
 ) {
     init {
         require(id.isNotBlank()) { "ChecklistItem id must not be blank" }
@@ -45,6 +47,8 @@ data class Collection(
     val categories: List<CollectionCategory> = emptyList(),
     val items: List<ChecklistItem> = emptyList(),
     val createdAt: Instant,
+    val metaAchievementName: String? = null,
+    val metaAchievementDescription: String? = null,
 ) {
     init {
         require(name.isNotBlank()) { "Collection name must not be blank" }

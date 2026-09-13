@@ -1,6 +1,9 @@
 package com.memento.presentation
 
+import com.memento.domain.collection.Achievement
+import com.memento.domain.collection.CollectionAchievementBoard
 import com.memento.domain.collection.CollectionProgress
+import com.memento.domain.collection.achievementBoard
 import com.memento.domain.collection.progress
 import com.memento.domain.model.Collection
 import com.memento.domain.model.CollectionId
@@ -22,6 +25,8 @@ data class CollectionProgressUiState(
     val collection: Collection? = null,
     val progress: CollectionProgress? = null,
     val isLoading: Boolean = true,
+    val board: CollectionAchievementBoard? = null,
+    val recentlyEarned: List<Achievement> = emptyList(),
 )
 
 /**
@@ -40,6 +45,9 @@ class CollectionDetailViewModel(
     private val _state = MutableStateFlow(CollectionProgressUiState())
     val state: StateFlow<CollectionProgressUiState> = _state.asStateFlow()
 
+    private val knownEarnedIds = mutableSetOf<String>()
+    private var earnedIdsInitialised = false
+
     init {
         scope.launch {
             combine(
@@ -51,10 +59,24 @@ class CollectionDetailViewModel(
                     selectedId != null -> collections.firstOrNull { it.id == selectedId }
                     else -> collections.firstOrNull()
                 }
+                val board = collection?.achievementBoard(mementos)
+                var recentlyEarned: List<Achievement> = emptyList()
+                if (board != null) {
+                    if (!earnedIdsInitialised) {
+                        knownEarnedIds.addAll(board.achievements.filter { it.earned }.map { it.id })
+                        earnedIdsInitialised = true
+                    } else {
+                        val newlyEarned = board.achievements.filter { it.earned && it.id !in knownEarnedIds }
+                        knownEarnedIds.addAll(newlyEarned.map { it.id })
+                        recentlyEarned = newlyEarned
+                    }
+                }
                 CollectionProgressUiState(
                     collection = collection,
                     progress = collection?.progress(mementos),
                     isLoading = false,
+                    board = board,
+                    recentlyEarned = recentlyEarned,
                 )
             }.collect { _state.value = it }
         }
@@ -62,6 +84,13 @@ class CollectionDetailViewModel(
 
     fun selectCollection(collectionId: CollectionId) {
         selectedCollectionId.value = collectionId
+    }
+
+    /** Clears the queue of achievements earned since the last acknowledgement. */
+    fun acknowledgeEarned() {
+        if (_state.value.recentlyEarned.isNotEmpty()) {
+            _state.value = _state.value.copy(recentlyEarned = emptyList())
+        }
     }
 
     fun dispose() {

@@ -36,6 +36,8 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
                 name = collection.name,
                 description = collection.description,
                 created_at = collection.createdAt.toString(),
+                meta_achievement_name = collection.metaAchievementName,
+                meta_achievement_description = collection.metaAchievementDescription,
             )
 
             deleteChildren(collection.id.value)
@@ -46,6 +48,7 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
                     collection_id = collection.id.value,
                     name = category.name,
                     position = index.toLong(),
+                    bonus_points = category.bonusPoints.toLong(),
                 )
             }
 
@@ -57,6 +60,7 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
                     category_id = item.categoryId,
                     brand = item.brand,
                     position = index.toLong(),
+                    points = item.points.toLong(),
                 )
                 item.matchTags.forEachIndexed { tagIndex, tag ->
                     queries.insertItemTag(
@@ -93,7 +97,7 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
         val collectionId = id
         val categories = queries.selectCategoriesForCollection(collectionId)
             .executeAsList()
-            .map { CollectionCategory(it.id, it.name) }
+            .map { CollectionCategory(it.id, it.name, it.bonus_points.toInt()) }
         val items = queries.selectItemsForCollection(collectionId).executeAsList().map { row ->
             ChecklistItem(
                 id = row.id,
@@ -101,6 +105,7 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
                 categoryId = row.category_id,
                 brand = row.brand,
                 matchTags = queries.selectItemTags(collectionId, row.id).executeAsList(),
+                points = row.points.toInt(),
             )
         }
 
@@ -111,6 +116,8 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
             categories = categories,
             items = items,
             createdAt = Instant.parse(created_at),
+            metaAchievementName = meta_achievement_name,
+            metaAchievementDescription = meta_achievement_description,
         )
     }
 }

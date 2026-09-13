@@ -24,12 +24,12 @@ object KonbiniDrinkChecklist {
         name = "Japan Konbini Drinks 2026",
         description = "Taste every iconic convenience-store drink in Japan, one can at a time.",
         categories = listOf(
-            CollectionCategory(CATEGORY_CANNED_COFFEE, "Canned Coffee"),
-            CollectionCategory(CATEGORY_GREEN_TEA, "Green Tea"),
-            CollectionCategory(CATEGORY_SPORTS, "Sports Drinks"),
-            CollectionCategory(CATEGORY_MILK_TEA, "Milk Tea"),
-            CollectionCategory(CATEGORY_FRUIT_SODA, "Fruit & Soda"),
-            CollectionCategory(CATEGORY_WATER_BARLEY, "Water & Barley Tea"),
+            CollectionCategory(CATEGORY_CANNED_COFFEE, "Canned Coffee", bonusPoints = 25),
+            CollectionCategory(CATEGORY_GREEN_TEA, "Green Tea", bonusPoints = 25),
+            CollectionCategory(CATEGORY_SPORTS, "Sports Drinks", bonusPoints = 25),
+            CollectionCategory(CATEGORY_MILK_TEA, "Milk Tea", bonusPoints = 25),
+            CollectionCategory(CATEGORY_FRUIT_SODA, "Fruit & Soda", bonusPoints = 25),
+            CollectionCategory(CATEGORY_WATER_BARLEY, "Water & Barley Tea", bonusPoints = 25),
         ),
         items = listOf(
             item("boss-rainbow", "BOSS Rainbow Mountain", CATEGORY_CANNED_COFFEE, "Suntory"),
@@ -58,6 +58,8 @@ object KonbiniDrinkChecklist {
             item("ikenaga-barley", "Ikenaga Barley Tea", CATEGORY_WATER_BARLEY, "Ikenaga"),
         ),
         createdAt = now,
+        metaAchievementName = "Konbini Grand Slam",
+        metaAchievementDescription = "Drain every category of the Japan Konbini Drinks 2026 board.",
     )
 
     private fun item(
@@ -65,11 +67,13 @@ object KonbiniDrinkChecklist {
         label: String,
         categoryId: String,
         brand: String,
+        points: Int = 10,
     ) = ChecklistItem(
         id = id,
         label = label,
         categoryId = categoryId,
         brand = brand,
         matchTags = listOf(id, brand.lowercase().replace(" ", "-")),
+        points = points,
     )
 }
