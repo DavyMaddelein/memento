@@ -68,7 +68,15 @@ private sealed interface Screen {
     data object Record : Screen
     data object Collection : Screen
     data object Places : Screen
-    data class Detail(val memento: Memento) : Screen
+    data class Detail(val memento: Memento, val from: DetailOrigin) : Screen
+}
+
+/** Where a [Screen.Detail] was opened from, so Back/Delete return there. */
+private enum class DetailOrigin { TIMELINE, PLACES }
+
+private fun detailBackDestination(origin: DetailOrigin): Screen = when (origin) {
+    DetailOrigin.TIMELINE -> Screen.Timeline
+    DetailOrigin.PLACES -> Screen.Places
 }
 
 /** Upper bound on decoded media kept alive by the web image cache. */
@@ -208,7 +216,7 @@ fun App() {
                         onSearchQueryChanged = graph.timelineViewModel::onSearchQueryChanged,
                         onTagToggled = graph.timelineViewModel::onFilterTagToggled,
                         onSortSelected = graph.timelineViewModel::onSortOrderSelected,
-                        onMementoClick = { memento -> screen = Screen.Detail(memento) },
+                        onMementoClick = { memento -> screen = Screen.Detail(memento, DetailOrigin.TIMELINE) },
                         onDeleteMemento = graph.timelineViewModel::onDeleteMemento,
                         onUndoDelete = graph.timelineViewModel::onRestoreMemento,
                         onAddMemento = {
@@ -257,7 +265,7 @@ fun App() {
                     Screen.Places -> PlacesScreen(
                         state = placesState,
                         images = timelineImages,
-                        onMementoClick = { memento -> screen = Screen.Detail(memento) },
+                        onMementoClick = { memento -> screen = Screen.Detail(memento, DetailOrigin.PLACES) },
                         onBack = { screen = Screen.Timeline },
                     )
 
@@ -266,14 +274,14 @@ fun App() {
                         MementoDetailScreen(
                             memento = memento,
                             images = memento.media.map { imageCache[it.id.value] },
-                            onBack = { screen = Screen.Timeline },
+                            onBack = { screen = detailBackDestination(current.from) },
                             onEdit = {
                                 graph.recordViewModel.loadForEdit(memento)
                                 screen = Screen.Record
                             },
                             onDelete = {
                                 graph.timelineViewModel.onDeleteMemento(memento.id)
-                                screen = Screen.Timeline
+                                screen = detailBackDestination(current.from)
                                 scope.launch {
                                     val result = snackbarHostState.showSnackbar(
                                         message = "Keepsake deleted",
