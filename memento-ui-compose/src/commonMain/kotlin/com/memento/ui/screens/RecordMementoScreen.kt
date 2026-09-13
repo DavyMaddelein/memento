@@ -97,8 +97,19 @@ fun RecordMementoScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = onSave, enabled = !state.isSaving) {
-                        Text("Save")
+                    val saveEnabled = !state.isSaving && state.savedMementoId == null
+                    TextButton(onClick = onSave, enabled = saveEnabled) {
+                        when {
+                            state.isSaving -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text("Saving…", modifier = Modifier.padding(start = 8.dp))
+                            }
+                            state.savedMementoId != null -> Text("Saved")
+                            else -> Text("Save")
+                        }
                     }
                 },
             )

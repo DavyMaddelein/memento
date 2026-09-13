@@ -177,6 +177,9 @@ class RecordMementoViewModel(
     }
 
     fun onSaveClicked() {
+        // Ignore repeat taps: while a save is in flight or after this form has already
+        // produced a memento, a second tap must not create a duplicate entry.
+        if (_state.value.isSaving || _state.value.savedMementoId != null) return
         val memento = buildMemento()
         val violations = MementoValidator.validate(memento)
         if (violations.isNotEmpty()) {

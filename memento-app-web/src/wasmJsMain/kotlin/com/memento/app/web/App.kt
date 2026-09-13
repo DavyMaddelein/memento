@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -17,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.dp
@@ -99,6 +102,7 @@ fun App() {
         var showBackup by remember { mutableStateOf(false) }
         var backupStatus by remember { mutableStateOf<BackupStatus>(BackupStatus.Idle) }
         var imageCache by remember { mutableStateOf<Map<String, ImageBitmap?>>(emptyMap()) }
+        val snackbarHostState = remember { SnackbarHostState() }
 
         val timelineState by graph.timelineViewModel.state.collectAsState()
         val recordState by graph.recordViewModel.state.collectAsState()
@@ -109,6 +113,13 @@ fun App() {
                 graph.collectionRepository.saveCollection(KonbiniDrinkChecklist.create(Clock.System.now()))
             }
             graph.collectionViewModel.selectCollection(KonbiniDrinkChecklist.COLLECTION_ID)
+        }
+
+        LaunchedEffect(recordState.savedMementoId) {
+            if (recordState.savedMementoId != null) {
+                screen = Screen.Timeline
+                snackbarHostState.showSnackbar("Keepsake saved")
+            }
         }
 
         val mediaReferences = remember(timelineState.mementos, recordState.media) {
@@ -159,7 +170,11 @@ fun App() {
                             screen = Screen.Record
                         },
                         onDeleteMemento = graph.timelineViewModel::onDeleteMemento,
-                        onAddMemento = { screen = Screen.Record },
+                        onUndoDelete = graph.timelineViewModel::onRestoreMemento,
+                        onAddMemento = {
+                            graph.recordViewModel.reset()
+                            screen = Screen.Record
+                        },
                     )
 
                     Screen.Record -> RecordMementoScreen(
@@ -186,6 +201,7 @@ fun App() {
                         images = timelineImages,
                         onBack = { screen = Screen.Timeline },
                         onRecordItem = { item ->
+                            graph.recordViewModel.reset()
                             graph.recordViewModel.onTitleChanged(item.label)
                             graph.recordViewModel.onBrandChanged(item.brand.orEmpty())
                             graph.recordViewModel.onCollectionToggled(KonbiniDrinkChecklist.COLLECTION_ID)
@@ -194,6 +210,10 @@ fun App() {
                         onAcknowledgeEarned = graph.collectionViewModel::acknowledgeEarned,
                     )
                 }
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
 

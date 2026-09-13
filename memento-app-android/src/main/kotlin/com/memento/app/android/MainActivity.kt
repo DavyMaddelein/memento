@@ -18,6 +18,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -160,10 +162,12 @@ private fun MementoApp() {
     var showBackupDialog by remember { mutableStateOf(false) }
     var backupStatus by remember { mutableStateOf<BackupStatus>(BackupStatus.Idle) }
     var pendingExport by remember { mutableStateOf<ByteArray?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(recordState.savedMementoId) {
         if (recordState.savedMementoId != null) {
             screen = Screen.Timeline
+            snackbarHostState.showSnackbar("Keepsake saved")
         }
     }
 
@@ -237,7 +241,11 @@ private fun MementoApp() {
                 )
                 NavigationBarItem(
                     selected = screen == Screen.Record,
-                    onClick = { screen = Screen.Record },
+                    onClick = {
+                        // Start a fresh form every time Record is opened from the bar.
+                        if (screen != Screen.Record) recordViewModel.reset()
+                        screen = Screen.Record
+                    },
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     label = { Text("Record") },
                 )
@@ -252,6 +260,7 @@ private fun MementoApp() {
                 )
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when (screen) {
@@ -266,6 +275,7 @@ private fun MementoApp() {
                         screen = Screen.Record
                     },
                     onDeleteMemento = timelineViewModel::onDeleteMemento,
+                    onUndoDelete = timelineViewModel::onRestoreMemento,
                     onAddMemento = {
                         recordViewModel.reset()
                         screen = Screen.Record
