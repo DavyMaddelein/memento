@@ -39,6 +39,7 @@ import com.memento.portability.ConflictPolicy
 import com.memento.portability.ZipExportEngine
 import com.memento.portability.ZipImportEngine
 import com.memento.presentation.CollectionDetailViewModel
+import com.memento.presentation.PlacesViewModel
 import com.memento.presentation.RecordMementoViewModel
 import com.memento.presentation.TimelineViewModel
 import com.memento.ui.image.decodeImage
@@ -46,6 +47,7 @@ import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
 import com.memento.ui.screens.ExportImportDialog
 import com.memento.ui.screens.MementoDetailScreen
+import com.memento.ui.screens.PlacesScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
@@ -59,6 +61,7 @@ private sealed interface Screen {
     data object Timeline : Screen
     data object Record : Screen
     data object Collection : Screen
+    data object Places : Screen
     data class Detail(val memento: Memento) : Screen
 }
 
@@ -91,6 +94,10 @@ private class AppGraph(scope: CoroutineScope) {
         mementoRepository = mementoRepository,
         scope = scope,
     )
+    val placesViewModel = PlacesViewModel(
+        mementoRepository = mementoRepository,
+        scope = scope,
+    )
 
     val exportEngine = ZipExportEngine(assetStore)
     val importEngine = ZipImportEngine(mementoRepository, assetStore)
@@ -115,6 +122,7 @@ fun App() {
         val timelineState by graph.timelineViewModel.state.collectAsState()
         val recordState by graph.recordViewModel.state.collectAsState()
         val collectionState by graph.collectionViewModel.state.collectAsState()
+        val placesState by graph.placesViewModel.state.collectAsState()
 
         LaunchedEffect(Unit) {
             if (graph.collectionRepository.getCollection(KonbiniDrinkChecklist.COLLECTION_ID) == null) {
@@ -163,6 +171,9 @@ fun App() {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
+                TextButton(onClick = { screen = Screen.Places }) {
+                    Text("Places")
+                }
                 TextButton(onClick = { screen = Screen.Collection }) {
                     Text("Collection")
                 }
@@ -186,6 +197,7 @@ fun App() {
                             graph.recordViewModel.reset()
                             screen = Screen.Record
                         },
+                        onOpenPlaces = { screen = Screen.Places },
                     )
 
                     Screen.Record -> RecordMementoScreen(
@@ -222,6 +234,13 @@ fun App() {
                             screen = Screen.Record
                         },
                         onAcknowledgeEarned = graph.collectionViewModel::acknowledgeEarned,
+                    )
+
+                    Screen.Places -> PlacesScreen(
+                        state = placesState,
+                        images = timelineImages,
+                        onMementoClick = { memento -> screen = Screen.Detail(memento) },
+                        onBack = { screen = Screen.Timeline },
                     )
 
                     is Screen.Detail -> {

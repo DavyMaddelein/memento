@@ -44,12 +44,14 @@ import com.memento.portability.ConflictPolicy
 import com.memento.portability.ZipExportEngine
 import com.memento.portability.ZipImportEngine
 import com.memento.presentation.CollectionDetailViewModel
+import com.memento.presentation.PlacesViewModel
 import com.memento.presentation.RecordMementoViewModel
 import com.memento.presentation.TimelineViewModel
 import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
 import com.memento.ui.screens.ExportImportDialog
 import com.memento.ui.screens.MementoDetailScreen
+import com.memento.ui.screens.PlacesScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
@@ -63,6 +65,7 @@ private sealed interface Screen {
     data object Timeline : Screen
     data object Record : Screen
     data object Collection : Screen
+    data object Places : Screen
     data class Detail(val memento: Memento) : Screen
 }
 
@@ -116,12 +119,14 @@ private fun MementoApp() {
     val collectionViewModel = remember {
         CollectionDetailViewModel(graph.collectionRepository, graph.mementoRepository)
     }
+    val placesViewModel = remember { PlacesViewModel(graph.mementoRepository) }
 
     DisposableEffect(Unit) {
         onDispose {
             timelineViewModel.dispose()
             recordViewModel.dispose()
             collectionViewModel.dispose()
+            placesViewModel.dispose()
         }
     }
 
@@ -154,6 +159,7 @@ private fun MementoApp() {
     val timelineState by timelineViewModel.state.collectAsState()
     val recordState by recordViewModel.state.collectAsState()
     val collectionState by collectionViewModel.state.collectAsState()
+    val placesState by placesViewModel.state.collectAsState()
 
     val timelineImages = rememberMementoImages(timelineState.mementos, graph.imageLoader)
     val recordImages by produceState(
@@ -282,6 +288,7 @@ private fun MementoApp() {
                         recordViewModel.reset()
                         screen = Screen.Record
                     },
+                    onOpenPlaces = { screen = Screen.Places },
                 )
 
                 Screen.Record -> RecordMementoScreen(
@@ -318,6 +325,13 @@ private fun MementoApp() {
                         screen = Screen.Record
                     },
                     onAcknowledgeEarned = collectionViewModel::acknowledgeEarned,
+                )
+
+                Screen.Places -> PlacesScreen(
+                    state = placesState,
+                    images = { memento -> timelineImages[memento.id.value].orEmpty() },
+                    onMementoClick = { memento -> screen = Screen.Detail(memento) },
+                    onBack = { screen = Screen.Timeline },
                 )
 
                 is Screen.Detail -> {

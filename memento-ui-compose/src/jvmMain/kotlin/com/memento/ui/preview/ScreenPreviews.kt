@@ -20,8 +20,10 @@ import com.memento.domain.model.Place
 import com.memento.domain.model.Rating
 import com.memento.domain.model.Tag
 import com.memento.domain.model.TastingNotes
+import com.memento.domain.places.PlaceGroup
 import com.memento.domain.usecase.MementoSort
 import com.memento.presentation.CollectionProgressUiState
+import com.memento.presentation.PlacesUiState
 import com.memento.presentation.RecordMementoUiState
 import com.memento.presentation.TimelineUiState
 import com.memento.domain.validation.ValidationViolation
@@ -30,6 +32,7 @@ import com.memento.ui.screens.CollectionDetailScreen
 import com.memento.ui.screens.ExportImportDialog
 import com.memento.ui.screens.MementoCard
 import com.memento.ui.screens.MementoDetailScreen
+import com.memento.ui.screens.PlacesScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
@@ -84,6 +87,21 @@ private val sampleCollection = Collection(
         ChecklistItem(id = "pocky", label = "Pocky", categoryId = "snacks", brand = "Glico"),
     ),
     createdAt = sampleInstant,
+)
+
+private val samplePlaceGroups = listOf(
+    PlaceGroup(
+        key = "tokyo",
+        title = "Tokyo",
+        subtitle = "Japan",
+        mementos = listOf(bossCoffee),
+    ),
+    PlaceGroup(
+        key = "kyoto",
+        title = "Kyoto",
+        subtitle = null,
+        mementos = listOf(strawberryMilk),
+    ),
 )
 
 @Preview
@@ -151,6 +169,19 @@ private fun TimelineScreenEmptyPreview() {
             onMementoClick = {},
             onDeleteMemento = {},
             onAddMemento = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PlacesScreenPreview() {
+    MementoTheme {
+        PlacesScreen(
+            state = PlacesUiState(groups = samplePlaceGroups, isLoading = false),
+            images = { memento -> List(memento.media.size) { null } },
+            onMementoClick = {},
+            onBack = {},
         )
     }
 }
