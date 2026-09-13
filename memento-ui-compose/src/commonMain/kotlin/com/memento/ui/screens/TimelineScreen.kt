@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -26,12 +27,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +48,7 @@ import com.memento.domain.model.MementoId
 import com.memento.domain.usecase.MementoSort
 import com.memento.presentation.TimelineUiState
 import com.memento.ui.components.TagChip
+import kotlinx.coroutines.launch
 
 /**
  * The keepsake timeline: search, tag filters, sort control and a lazily rendered list of
@@ -57,14 +64,20 @@ fun TimelineScreen(
     onSortSelected: (MementoSort) -> Unit,
     onMementoClick: (Memento) -> Unit,
     onDeleteMemento: (MementoId) -> Unit,
+    onUndoDelete: (Memento) -> Unit = {},
     onAddMemento: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var pendingDelete by remember { mutableStateOf<Memento?>(null) }
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(title = { Text("Mementos") })
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddMemento) {
                 Icon(imageVector = Icons.Filled.Add, contentDescription = "Add memento")
@@ -144,13 +157,49 @@ fun TimelineScreen(
                                 memento = memento,
                                 images = images(memento),
                                 onClick = { onMementoClick(memento) },
-                                onDelete = { onDeleteMemento(memento.id) },
+                                onDelete = { pendingDelete = memento },
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    pendingDelete?.let { memento ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete this keepsake?") },
+            text = {
+                Text(
+                    "This removes the moment and its photos. You can undo right afterwards.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDelete = null
+                        onDeleteMemento(memento.id)
+                        scope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = "Keepsake deleted",
+                                actionLabel = "Undo",
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                onUndoDelete(memento)
+                            }
+                        }
+                    },
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
 

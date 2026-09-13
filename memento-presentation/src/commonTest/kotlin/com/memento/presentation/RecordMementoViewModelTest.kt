@@ -169,6 +169,42 @@ class RecordMementoViewModelTest {
     }
 
     @Test
+    fun repeatedSaveClicksPersistOnlyOneMemento() = runTest {
+        val repository = InMemoryMementoRepository()
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onAddFromCamera()
+        viewModel.onTitleChanged("Tokyo Konbini")
+        advanceUntilIdle()
+
+        // Three taps in a row must not create duplicates.
+        viewModel.onSaveClicked()
+        viewModel.onSaveClicked()
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.state.value.savedMementoId)
+        assertEquals(1, repository.observeAllMementos().first().size)
+
+        // Tapping again after the save completed is still a no-op.
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+        assertEquals(1, repository.observeAllMementos().first().size)
+
+        // Resetting the form starts a new keepsake.
+        viewModel.reset()
+        assertNull(viewModel.state.value.savedMementoId)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
     fun loadForEditPopulatesStateAndSavesSameId() = runTest {
         val repository = InMemoryMementoRepository()
         val existing = testMemento(id = "existing", title = "Old Title")

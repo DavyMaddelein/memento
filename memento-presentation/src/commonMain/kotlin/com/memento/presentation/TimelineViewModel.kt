@@ -72,6 +72,11 @@ class TimelineViewModel(
         scope.launch { mementoRepository.deleteMemento(id) }
     }
 
+    /** Restores a previously deleted memento (used by the timeline's undo action). */
+    fun onRestoreMemento(memento: Memento) {
+        scope.launch { mementoRepository.saveMemento(memento) }
+    }
+
     fun dispose() {
         scope.cancel()
     }
