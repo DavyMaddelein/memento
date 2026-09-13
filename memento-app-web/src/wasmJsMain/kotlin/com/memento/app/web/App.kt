@@ -1,5 +1,6 @@
 package com.memento.app.web
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,9 +8,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.memento.domain.collection.KonbiniDrinkChecklist
 import com.memento.domain.model.Memento
@@ -166,21 +172,33 @@ fun App() {
             memento.media.map { imageCache[it.id.value] }
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(onClick = { screen = Screen.Places }) {
-                    Text("Places")
-                }
-                TextButton(onClick = { screen = Screen.Collection }) {
-                    Text("Collection")
-                }
-                TextButton(onClick = { showBackup = true }) {
-                    Text("Backup")
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            Surface(color = MaterialTheme.colorScheme.background) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TopNavButton("Mementos", selected = screen == Screen.Timeline) {
+                        screen = Screen.Timeline
+                    }
+                    TopNavButton("Places", selected = screen == Screen.Places) {
+                        screen = Screen.Places
+                    }
+                    TopNavButton("Collection", selected = screen == Screen.Collection) {
+                        screen = Screen.Collection
+                    }
+                    TopNavButton("Backup", selected = false) {
+                        backupStatus = BackupStatus.Idle
+                        showBackup = true
+                    }
                 }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (val current = screen) {
@@ -346,5 +364,29 @@ fun App() {
                 },
             )
         }
+    }
+}
+
+/** Top navigation button that stays legible on the app background. */
+@Composable
+private fun TopNavButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        ),
+    ) {
+        Text(
+            text = label,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
     }
 }

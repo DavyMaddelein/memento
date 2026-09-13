@@ -44,6 +44,14 @@ private val MementoLightColors = lightColorScheme(
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF410002),
+    surfaceTint = Color(0xFF4A3F8F),
+    surfaceBright = Color(0xFFFBF7F0),
+    surfaceDim = Color(0xFFDCD7CD),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFF7F2E9),
+    surfaceContainer = Color(0xFFF1ECE2),
+    surfaceContainerHigh = Color(0xFFEBE6DC),
+    surfaceContainerHighest = Color(0xFFE5E0D6),
 )
 
 private val MementoDarkColors = darkColorScheme(
@@ -71,6 +79,14 @@ private val MementoDarkColors = darkColorScheme(
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
+    surfaceTint = Color(0xFFC7BFFF),
+    surfaceBright = Color(0xFF3A3833),
+    surfaceDim = Color(0xFF0F0E0B),
+    surfaceContainerLowest = Color(0xFF0F0E0B),
+    surfaceContainerLow = Color(0xFF1B1A15),
+    surfaceContainer = Color(0xFF1F1E19),
+    surfaceContainerHigh = Color(0xFF2A2823),
+    surfaceContainerHighest = Color(0xFF35322D),
 )
 
 /**
