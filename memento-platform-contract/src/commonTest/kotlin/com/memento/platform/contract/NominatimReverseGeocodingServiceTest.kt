@@ -31,6 +31,30 @@ class NominatimReverseGeocodingServiceTest {
     }
 
     @Test
+    fun poiAmenityWinsOverRoad() = runTest {
+        val body =
+            """{"place_id":1,"display_name":"7-Eleven, Shibuya 1-chome, Tokyo","address":{"amenity":"7-Eleven","road":"Shibuya 1-chome","city":"Tokyo","country":"Japan"}}"""
+        val client = RecordingHttpClient(Result.success(body))
+        val service = NominatimReverseGeocodingService(client)
+
+        val place = service.reverseGeocode(shibuya).getOrThrow()
+
+        assertEquals("7-Eleven", place.name)
+    }
+
+    @Test
+    fun neighbourhoodWinsOverRoadWhenNoPoi() = runTest {
+        val body =
+            """{"place_id":2,"display_name":"道玄坂二丁目, 渋谷センター街, 日本","address":{"road":"渋谷センター街","neighbourhood":"道玄坂二丁目","city":"渋谷区","country":"日本"}}"""
+        val client = RecordingHttpClient(Result.success(body))
+        val service = NominatimReverseGeocodingService(client)
+
+        val place = service.reverseGeocode(shibuya).getOrThrow()
+
+        assertEquals("道玄坂二丁目", place.name)
+    }
+
+    @Test
     fun buildsTheExpectedRequestUrlAndHeaders() = runTest {
         val client = RecordingHttpClient(Result.success("{}"))
         val service = NominatimReverseGeocodingService(client)

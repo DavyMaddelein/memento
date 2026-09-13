@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -486,13 +488,58 @@ class RecordMementoViewModelTest {
     }
 
     @Test
-    fun isoDateHelpersRoundTrip() {
-        val instant = Instant.parse("2026-09-13T00:00:00Z")
-        assertEquals("2026-09-13", formatIsoDate(instant))
-        assertEquals(instant, parseIsoDateOrNull("2026-09-13"))
+    fun isoDateHelpersUseLocalTimeZone() {
+        val tokyo = TimeZone.of("+09:00")
+        // 2026-09-12T22:00Z is 2026-09-13T07:00 in Tokyo: UTC would report the previous day.
+        val instant = Instant.parse("2026-09-12T22:00:00Z")
 
-        assertNull(parseIsoDateOrNull("not-a-date"))
-        assertNull(parseIsoDateOrNull("2026-13-01"))
-        assertNull(parseIsoDateOrNull(""))
+        assertEquals("2026-09-13", formatIsoDate(instant, tokyo))
+        assertEquals("2026-09-12", formatIsoDate(instant, TimeZone.UTC))
+
+        val startOfDayTokyo = parseIsoDateOrNull("2026-09-13", tokyo)
+        assertEquals(Instant.parse("2026-09-12T15:00:00Z"), startOfDayTokyo)
+        assertEquals("2026-09-13", formatIsoDate(startOfDayTokyo!!, tokyo))
+
+        assertNull(parseIsoDateOrNull("not-a-date", tokyo))
+        assertNull(parseIsoDateOrNull("2026-13-01", tokyo))
+        assertNull(parseIsoDateOrNull("", tokyo))
+    }
+
+    @Test
+    fun datePickerMillisEncodesLocalDateAsUtcMidnight() {
+        val tokyo = TimeZone.of("+09:00")
+        val instant = Instant.parse("2026-09-12T22:00:00Z") // 2026-09-13T07:00 Tokyo
+
+        val pickerMillis = localDatePickerMillis(instant, tokyo)
+        assertEquals(Instant.parse("2026-09-13T00:00:00Z").toEpochMilliseconds(), pickerMillis)
+    }
+
+    @Test
+    fun instantForPickedDatePreservesLocalTimeOfDay() {
+        val tokyo = TimeZone.of("+09:00")
+        val reference = Instant.parse("2026-09-01T22:30:00Z") // 2026-09-02T07:30 Tokyo
+        val pickerMillis = localDatePickerMillis(Instant.parse("2026-09-13T07:00:00Z"), tokyo)
+
+        val result = instantForPickedDate(pickerMillis, reference, tokyo)
+
+        // Picked day in Tokyo is 2026-09-13, keeping 07:30 local => 2026-09-12T22:30Z.
+        assertEquals(Instant.parse("2026-09-12T22:30:00Z"), result)
+        assertEquals(
+            reference.toLocalDateTime(tokyo).time,
+            result.toLocalDateTime(tokyo).time,
+        )
+        assertEquals("2026-09-13", formatIsoDate(result, tokyo))
+    }
+
+    @Test
+    fun pickerMillisRoundTripsThroughInstantForPickedDate() {
+        val tokyo = TimeZone.of("+09:00")
+        val reference = Instant.parse("2026-09-12T22:30:00Z") // 2026-09-13T07:30 Tokyo
+        val pickerMillis = localDatePickerMillis(reference, tokyo)
+
+        val roundTripped = instantForPickedDate(pickerMillis, reference, tokyo)
+
+        assertEquals(pickerMillis, localDatePickerMillis(roundTripped, tokyo))
+        assertEquals(reference.toLocalDateTime(tokyo).time, roundTripped.toLocalDateTime(tokyo).time)
     }
 }

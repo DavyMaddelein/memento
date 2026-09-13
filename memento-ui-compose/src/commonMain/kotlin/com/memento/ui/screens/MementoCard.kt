@@ -25,14 +25,12 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.memento.domain.model.Memento
+import com.memento.presentation.formatIsoDate
 import com.memento.ui.components.LocationBadge
 import com.memento.ui.components.MementoCardShell
 import com.memento.ui.components.PhotoThumbnail
 import com.memento.ui.components.StarRatingBar
 import com.memento.ui.components.TagChipFlow
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 /**
  * A single keepsake card: leading photo, title, location, date, optional rating, and an expandable
@@ -102,7 +100,7 @@ fun MementoCard(
                         coordinates = memento.coordinates,
                     )
                     Text(
-                        text = formatMementoDate(memento.occurredAt),
+                        text = formatIsoDate(memento.occurredAt),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.outline,
                     )
@@ -138,6 +136,3 @@ fun MementoCard(
         }
     }
 }
-
-internal fun formatMementoDate(instant: Instant): String =
-    instant.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()

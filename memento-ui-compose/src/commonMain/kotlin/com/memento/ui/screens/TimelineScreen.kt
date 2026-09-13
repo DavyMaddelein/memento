@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -69,6 +70,7 @@ fun TimelineScreen(
     onUndoDelete: (Memento) -> Unit = {},
     onAddMemento: () -> Unit,
     onOpenPlaces: (() -> Unit)? = null,
+    onQuickCapture: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -81,6 +83,14 @@ fun TimelineScreen(
             TopAppBar(
                 title = { Text("Mementos") },
                 actions = {
+                    if (onQuickCapture != null) {
+                        IconButton(onClick = onQuickCapture) {
+                            Icon(
+                                imageVector = Icons.Filled.PhotoCamera,
+                                contentDescription = "Quick capture",
+                            )
+                        }
+                    }
                     if (onOpenPlaces != null) {
                         IconButton(onClick = onOpenPlaces) {
                             Icon(

@@ -46,11 +46,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.memento.domain.model.CollectionId
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
 import com.memento.domain.validation.ValidationViolation
 import com.memento.presentation.RecordMementoUiState
 import com.memento.presentation.formatIsoDate
+import com.memento.presentation.instantForPickedDate
+import com.memento.presentation.localDatePickerMillis
 import com.memento.ui.components.PhotoStrip
 import com.memento.ui.components.StarRatingBar
 import com.memento.ui.components.TagChip
@@ -92,6 +95,7 @@ fun RecordMementoScreen(
     onOccurredAtChanged: (Instant) -> Unit = {},
     onPriceChanged: (String) -> Unit = {},
     onCurrencyChanged: (String) -> Unit = {},
+    onCollectionToggled: (CollectionId) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val errorsByField = state.errors.groupBy { it.field }
@@ -356,13 +360,30 @@ fun RecordMementoScreen(
             }
             FieldErrors(errorsByField["tags"])
 
+            if (state.availableCollections.isNotEmpty()) {
+                SectionLabel("Collections")
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    state.availableCollections.forEach { collection ->
+                        TagChip(
+                            label = collection.name,
+                            selected = collection.id in state.collectionIds,
+                            onClick = { onCollectionToggled(collection.id) },
+                        )
+                    }
+                }
+                FieldErrors(errorsByField["collections"])
+            }
+
             FieldErrors(errorsByField["save"])
         }
     }
 
     if (showDatePicker) {
         val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = state.occurredAt.toEpochMilliseconds(),
+            initialSelectedDateMillis = localDatePickerMillis(state.occurredAt),
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -370,7 +391,7 @@ fun RecordMementoScreen(
                 TextButton(
                     onClick = {
                         pickerState.selectedDateMillis?.let { millis ->
-                            onOccurredAtChanged(Instant.fromEpochMilliseconds(millis))
+                            onOccurredAtChanged(instantForPickedDate(millis, state.occurredAt))
                         }
                         showDatePicker = false
                     },

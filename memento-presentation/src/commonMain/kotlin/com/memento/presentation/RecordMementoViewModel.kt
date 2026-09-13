@@ -1,5 +1,6 @@
 package com.memento.presentation
 
+import com.memento.domain.model.Collection
 import com.memento.domain.model.CollectionId
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
@@ -18,12 +19,14 @@ import com.memento.platform.contract.PhotoPickerService
 import com.memento.platform.contract.ResolvedPlace
 import com.memento.platform.contract.ReverseGeocodingService
 import com.memento.storage.contract.AssetStore
+import com.memento.storage.contract.CollectionRepository
 import com.memento.storage.contract.MementoRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -52,6 +55,7 @@ data class RecordMementoUiState(
     val occurredAt: Instant = Clock.System.now(),
     val priceText: String = "",
     val currencyCode: String = "JPY",
+    val availableCollections: List<Collection> = emptyList(),
 )
 
 /** Convenience-store chains recognised in a reverse-geocoded place name. */
@@ -67,10 +71,21 @@ class RecordMementoViewModel(
     private val locationProvider: LocationProvider,
     private val photoPicker: PhotoPickerService,
     private val reverseGeocodingService: ReverseGeocodingService? = null,
+    private val collectionRepository: CollectionRepository? = null,
     private val scope: CoroutineScope = defaultViewModelScope(),
 ) {
     private val _state = MutableStateFlow(RecordMementoUiState())
     val state: StateFlow<RecordMementoUiState> = _state.asStateFlow()
+
+    init {
+        collectionRepository?.let { repository ->
+            scope.launch {
+                repository.observeCollections().collect { collections ->
+                    _state.value = _state.value.copy(availableCollections = collections)
+                }
+            }
+        }
+    }
 
     fun onAddFromCamera() {
         scope.launch {
@@ -278,7 +293,8 @@ class RecordMementoViewModel(
 
     /** Clears the form so the next capture starts from a blank keepsake. */
     fun reset() {
-        _state.value = RecordMementoUiState()
+        // Keep the loaded collection list (context, not form input).
+        _state.value = RecordMementoUiState(availableCollections = _state.value.availableCollections)
     }
 
     fun loadForEdit(memento: Memento) {
@@ -297,6 +313,7 @@ class RecordMementoViewModel(
             occurredAt = memento.occurredAt,
             priceText = memento.priceMinorUnits?.toString() ?: "",
             currencyCode = memento.currencyCode ?: "JPY",
+            availableCollections = _state.value.availableCollections,
         )
     }
 

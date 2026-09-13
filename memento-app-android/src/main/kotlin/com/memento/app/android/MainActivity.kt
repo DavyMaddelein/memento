@@ -122,6 +122,7 @@ private fun MementoApp() {
             locationProvider = graph.locationProvider,
             photoPicker = AndroidPhotoPickerService(photoLauncher, graph.mediaStorageService),
             reverseGeocodingService = androidReverseGeocodingService(),
+            collectionRepository = graph.collectionRepository,
         )
     }
     val collectionViewModel = remember {
@@ -297,6 +298,12 @@ private fun MementoApp() {
                         screen = Screen.Record
                     },
                     onOpenPlaces = { screen = Screen.Places },
+                    onQuickCapture = {
+                        recordViewModel.reset()
+                        screen = Screen.Record
+                        recordViewModel.onAddFromCamera()
+                        recordViewModel.onFetchLocationClicked()
+                    },
                 )
 
                 Screen.Record -> RecordMementoScreen(
@@ -319,6 +326,7 @@ private fun MementoApp() {
                     onOccurredAtChanged = recordViewModel::onOccurredAtChanged,
                     onPriceChanged = recordViewModel::onPriceChanged,
                     onCurrencyChanged = recordViewModel::onCurrencyChanged,
+                    onCollectionToggled = recordViewModel::onCollectionToggled,
                 )
 
                 Screen.Collection -> CollectionDetailScreen(
