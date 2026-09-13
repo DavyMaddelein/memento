@@ -1,0 +1,13 @@
+.gradle/
+build/
+**/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+.kotlin/
+captures/
+*.hprof
+.playwright-mcp/
+kotlin-js-store/
+web_timeline.png

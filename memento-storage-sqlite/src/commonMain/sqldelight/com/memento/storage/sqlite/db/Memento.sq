@@ -1,0 +1,254 @@
+CREATE TABLE memento (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    reflection TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    accuracy_meters REAL,
+    place_name TEXT,
+    place_brand TEXT,
+    place_neighborhood TEXT,
+    place_city TEXT,
+    place_country TEXT,
+    rating INTEGER,
+    tasting_text TEXT,
+    price_minor_units INTEGER,
+    currency_code TEXT,
+    occurred_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE memento_tag (
+    memento_id TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (memento_id, kind, position)
+);
+
+CREATE TABLE memento_collection (
+    memento_id TEXT NOT NULL,
+    collection_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (memento_id, collection_id)
+);
+
+CREATE TABLE media_ref (
+    id TEXT NOT NULL PRIMARY KEY,
+    memento_id TEXT NOT NULL,
+    uri TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    captured_at TEXT NOT NULL,
+    position INTEGER NOT NULL
+);
+
+CREATE TABLE collection (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE collection_category (
+    id TEXT NOT NULL,
+    collection_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (collection_id, id)
+);
+
+CREATE TABLE checklist_item (
+    id TEXT NOT NULL,
+    collection_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    category_id TEXT,
+    brand TEXT,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (collection_id, id)
+);
+
+CREATE TABLE checklist_item_tag (
+    collection_id TEXT NOT NULL,
+    checklist_item_id TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (collection_id, checklist_item_id, position)
+);
+
+CREATE TABLE asset (
+    id TEXT NOT NULL PRIMARY KEY,
+    uri TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    captured_at TEXT NOT NULL,
+    bytes BLOB NOT NULL
+);
+
+selectAllMementos:
+SELECT *
+FROM memento
+ORDER BY occurred_at DESC;
+
+selectMementoById:
+SELECT *
+FROM memento
+WHERE id = ?;
+
+upsertMemento:
+INSERT OR REPLACE INTO memento(
+    id,
+    title,
+    reflection,
+    latitude,
+    longitude,
+    accuracy_meters,
+    place_name,
+    place_brand,
+    place_neighborhood,
+    place_city,
+    place_country,
+    rating,
+    tasting_text,
+    price_minor_units,
+    currency_code,
+    occurred_at,
+    created_at,
+    updated_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteMemento:
+DELETE FROM memento
+WHERE id = ?;
+
+deleteAllMementos:
+DELETE FROM memento;
+
+selectTagsForMemento:
+SELECT tag
+FROM memento_tag
+WHERE memento_id = ? AND kind = 'TAG'
+ORDER BY position;
+
+selectFlavorTagsForMemento:
+SELECT tag
+FROM memento_tag
+WHERE memento_id = ? AND kind = 'FLAVOR'
+ORDER BY position;
+
+insertMementoTag:
+INSERT INTO memento_tag(memento_id, tag, kind, position)
+VALUES (?, ?, ?, ?);
+
+deleteTagsForMemento:
+DELETE FROM memento_tag
+WHERE memento_id = ?;
+
+selectCollectionIdsForMemento:
+SELECT collection_id
+FROM memento_collection
+WHERE memento_id = ?
+ORDER BY position;
+
+insertMementoCollection:
+INSERT INTO memento_collection(memento_id, collection_id, position)
+VALUES (?, ?, ?);
+
+deleteCollectionsForMemento:
+DELETE FROM memento_collection
+WHERE memento_id = ?;
+
+selectMediaForMemento:
+SELECT *
+FROM media_ref
+WHERE memento_id = ?
+ORDER BY position;
+
+upsertMediaRef:
+INSERT OR REPLACE INTO media_ref(id, memento_id, uri, mime_type, captured_at, position)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteMediaForMemento:
+DELETE FROM media_ref
+WHERE memento_id = ?;
+
+selectAllCollections:
+SELECT *
+FROM collection
+ORDER BY name COLLATE NOCASE ASC;
+
+selectCollectionById:
+SELECT *
+FROM collection
+WHERE id = ?;
+
+upsertCollection:
+INSERT OR REPLACE INTO collection(id, name, description, created_at)
+VALUES (?, ?, ?, ?);
+
+deleteCollection:
+DELETE FROM collection
+WHERE id = ?;
+
+deleteAllCollections:
+DELETE FROM collection;
+
+selectCategoriesForCollection:
+SELECT *
+FROM collection_category
+WHERE collection_id = ?
+ORDER BY position;
+
+insertCategory:
+INSERT INTO collection_category(id, collection_id, name, position)
+VALUES (?, ?, ?, ?);
+
+deleteCategoriesForCollection:
+DELETE FROM collection_category
+WHERE collection_id = ?;
+
+selectItemsForCollection:
+SELECT *
+FROM checklist_item
+WHERE collection_id = ?
+ORDER BY position;
+
+insertChecklistItem:
+INSERT INTO checklist_item(id, collection_id, label, category_id, brand, position)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteItemsForCollection:
+DELETE FROM checklist_item
+WHERE collection_id = ?;
+
+selectItemTags:
+SELECT tag
+FROM checklist_item_tag
+WHERE collection_id = ? AND checklist_item_id = ?
+ORDER BY position;
+
+insertItemTag:
+INSERT INTO checklist_item_tag(collection_id, checklist_item_id, tag, position)
+VALUES (?, ?, ?, ?);
+
+deleteItemTagsForCollection:
+DELETE FROM checklist_item_tag
+WHERE collection_id = ?;
+
+selectAllAssetIds:
+SELECT id
+FROM asset;
+
+selectAssetById:
+SELECT *
+FROM asset
+WHERE id = ?;
+
+upsertAsset:
+INSERT OR REPLACE INTO asset(id, uri, mime_type, file_name, captured_at, bytes)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteAsset:
+DELETE FROM asset
+WHERE id = ?;
