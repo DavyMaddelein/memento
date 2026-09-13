@@ -101,6 +101,7 @@ private class AppGraph(scope: CoroutineScope) {
         locationProvider = locationProvider,
         photoPicker = photoPicker,
         reverseGeocodingService = webReverseGeocodingService(),
+        collectionRepository = collectionRepository,
         scope = scope,
     )
     val collectionViewModel = CollectionDetailViewModel(
@@ -224,6 +225,12 @@ fun App() {
                             screen = Screen.Record
                         },
                         onOpenPlaces = { screen = Screen.Places },
+                        onQuickCapture = {
+                            graph.recordViewModel.reset()
+                            screen = Screen.Record
+                            graph.recordViewModel.onAddFromCamera()
+                            graph.recordViewModel.onFetchLocationClicked()
+                        },
                     )
 
                     Screen.Record -> RecordMementoScreen(
@@ -246,6 +253,7 @@ fun App() {
                         onOccurredAtChanged = graph.recordViewModel::onOccurredAtChanged,
                         onPriceChanged = graph.recordViewModel::onPriceChanged,
                         onCurrencyChanged = graph.recordViewModel::onCurrencyChanged,
+                        onCollectionToggled = graph.recordViewModel::onCollectionToggled,
                     )
 
                     Screen.Collection -> CollectionDetailScreen(

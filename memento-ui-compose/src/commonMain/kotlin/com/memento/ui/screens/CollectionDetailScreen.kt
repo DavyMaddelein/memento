@@ -55,12 +55,10 @@ import com.memento.domain.model.ChecklistItem
 import com.memento.domain.model.Collection
 import com.memento.domain.model.Memento
 import com.memento.presentation.CollectionProgressUiState
+import com.memento.presentation.formatIsoDate
 import com.memento.ui.theme.AchievementColors
 import com.memento.ui.theme.tierColor
 import com.memento.ui.theme.tierContainer
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 private val TextPrimary = Color(0xFFF1EAD9)
 private val TextMuted = Color(0xFFA99F8C)
@@ -348,7 +346,7 @@ private fun MetaAchievementCard(
         if (earned) {
             achievement.earnedAt?.let { earnedAt ->
                 Text(
-                    text = "Earned ${formatAchievementDate(earnedAt)}",
+                    text = "Earned ${formatIsoDate(earnedAt)}",
                     style = MaterialTheme.typography.labelLarge,
                     color = AchievementColors.EarnedText,
                 )
@@ -535,7 +533,7 @@ private fun AchievementRow(
                 if (earned) {
                     achievement.earnedAt?.let { earnedAt ->
                         Text(
-                            text = "Earned ${formatAchievementDate(earnedAt)}",
+                            text = "Earned ${formatIsoDate(earnedAt)}",
                             style = MaterialTheme.typography.labelMedium,
                             color = AchievementColors.EarnedText,
                         )
@@ -698,7 +696,3 @@ private fun buildSections(
         sections + AchievementSection(id = "__other", name = "Other", category = null, items = orphans)
     }
 }
-
-/** Formats an unlock instant as an ISO `yyyy-MM-dd` local date, matching [MementoCard]. */
-internal fun formatAchievementDate(instant: Instant): String =
-    instant.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()

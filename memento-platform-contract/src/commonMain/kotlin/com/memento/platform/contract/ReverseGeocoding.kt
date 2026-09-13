@@ -73,7 +73,22 @@ class NominatimReverseGeocodingService(
     private fun NominatimResponse.toResolvedPlace(): ResolvedPlace {
         val address = address
         val resolved = ResolvedPlace(
-            name = firstNonBlank(name, address?.name, address?.junction, address?.road),
+            name = firstNonBlank(
+                name,
+                address?.amenity,
+                address?.shop,
+                address?.tourism,
+                address?.leisure,
+                address?.office,
+                address?.building,
+                address?.name,
+                address?.neighbourhood,
+                address?.suburb,
+                address?.city,
+                address?.town,
+                address?.village,
+                address?.road,
+            ),
             neighborhood = firstNonBlank(address?.neighbourhood, address?.suburb, address?.quarter),
             city = firstNonBlank(
                 address?.city,
@@ -115,6 +130,13 @@ private data class NominatimAddress(
     val name: String? = null,
     val junction: String? = null,
     val road: String? = null,
+    val amenity: String? = null,
+    val shop: String? = null,
+    val tourism: String? = null,
+    val leisure: String? = null,
+    val office: String? = null,
+    val building: String? = null,
+    @SerialName("house_number") val houseNumber: String? = null,
     val neighbourhood: String? = null,
     val suburb: String? = null,
     val quarter: String? = null,
