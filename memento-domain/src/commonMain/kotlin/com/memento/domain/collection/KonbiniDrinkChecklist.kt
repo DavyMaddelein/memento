@@ -73,7 +73,7 @@ object KonbiniDrinkChecklist {
         label = label,
         categoryId = categoryId,
         brand = brand,
-        matchTags = listOf(id, brand.lowercase().replace(" ", "-")),
+        matchTags = listOf(id),
         points = points,
     )
 }

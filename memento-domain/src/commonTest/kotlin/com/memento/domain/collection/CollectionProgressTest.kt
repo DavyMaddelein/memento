@@ -19,7 +19,13 @@ class CollectionProgressTest {
 
     private val coffeeCategory = CollectionCategory("cat-coffee", "Coffee")
     private val teaCategory = CollectionCategory("cat-tea", "Tea")
-    private val boss = ChecklistItem("i-boss", "BOSS Rainbow Mountain", "cat-coffee", brand = "Suntory")
+    private val boss = ChecklistItem(
+        id = "i-boss",
+        label = "BOSS Rainbow Mountain",
+        categoryId = "cat-coffee",
+        brand = "Suntory",
+        matchTags = listOf("i-boss"),
+    )
     private val oi = ChecklistItem(
         id = "i-oi",
         label = "Ito En Oi Ocha",
@@ -37,18 +43,25 @@ class CollectionProgressTest {
         createdAt = T1,
     )
 
-    private val brandMatch = memento(id = "brand", place = Place("Store", brand = "Suntory"))
+    private val brandOnly = memento(id = "brand", place = Place("Store", brand = "Suntory"))
     private val tagMatch = memento(id = "tag", tags = listOf(Tag("Green-Tea")))
     private val labelMatch = memento(id = "label", title = "I drank Pocari Sweat today")
+    private val bossTag = memento(id = "boss-tag", tags = listOf(Tag("i-boss")))
 
     @Test
-    fun isCoveredByBrandIsCaseInsensitive() {
-        assertTrue(boss.isCoveredBy(memento(place = Place("Store", brand = "suntory"))))
+    fun brandOnlyMementoDoesNotCoverItem() {
+        assertFalse(boss.isCoveredBy(memento(place = Place("Store", brand = "suntory"))))
+        assertEquals(emptySet(), collection.completedItemIds(listOf(brandOnly)))
     }
 
     @Test
     fun isCoveredBySharedMatchTagIsCaseInsensitive() {
         assertTrue(oi.isCoveredBy(memento(tags = listOf(Tag("GREEN-TEA")))))
+    }
+
+    @Test
+    fun itemIdAsTagCoversItem() {
+        assertTrue(boss.isCoveredBy(memento(tags = listOf(Tag("I-BOSS")))))
     }
 
     @Test
@@ -71,48 +84,48 @@ class CollectionProgressTest {
 
     @Test
     fun completedItemIdsReflectsAllCoverageStrategies() {
-        val completed = collection.completedItemIds(listOf(brandMatch, tagMatch, labelMatch))
+        val completed = collection.completedItemIds(listOf(brandOnly, bossTag, tagMatch, labelMatch))
 
         assertEquals(setOf("i-boss", "i-oi", "i-pocari"), completed)
     }
 
     @Test
     fun percentageWithOneOfThreeIsThirtyThree() {
-        assertEquals(33, collection.calculateCompletionPercentage(listOf(brandMatch)))
+        assertEquals(33, collection.calculateCompletionPercentage(listOf(tagMatch)))
     }
 
     @Test
     fun percentageWithAllItemsIsOneHundred() {
-        assertEquals(100, collection.calculateCompletionPercentage(listOf(brandMatch, tagMatch, labelMatch)))
+        assertEquals(100, collection.calculateCompletionPercentage(listOf(bossTag, tagMatch, labelMatch)))
     }
 
     @Test
     fun emptyCollectionHasZeroPercentage() {
         val empty = collection.copy(items = emptyList())
 
-        assertEquals(0, empty.calculateCompletionPercentage(listOf(brandMatch)))
-        assertEquals(0, empty.progress(listOf(brandMatch)).percentage)
+        assertEquals(0, empty.calculateCompletionPercentage(listOf(brandOnly)))
+        assertEquals(0, empty.progress(listOf(brandOnly)).percentage)
     }
 
     @Test
     fun coveredCategoriesFollowCoveredItems() {
-        assertContentEquals(listOf(coffeeCategory), collection.getCoveredCategories(listOf(brandMatch)))
+        assertContentEquals(listOf(coffeeCategory), collection.getCoveredCategories(listOf(bossTag)))
         assertContentEquals(listOf(teaCategory), collection.getCoveredCategories(listOf(tagMatch)))
         assertContentEquals(
             listOf(coffeeCategory, teaCategory),
-            collection.getCoveredCategories(listOf(brandMatch, tagMatch, labelMatch)),
+            collection.getCoveredCategories(listOf(bossTag, tagMatch, labelMatch)),
         )
     }
 
     @Test
     fun coveredBrandsComeFromMementoPlaces() {
-        assertEquals(setOf("Suntory"), collection.getCoveredBrands(listOf(brandMatch)))
+        assertEquals(setOf("Suntory"), collection.getCoveredBrands(listOf(brandOnly)))
         assertEquals(emptySet(), collection.getCoveredBrands(listOf(labelMatch)))
     }
 
     @Test
     fun progressAggregatesOverallAndPerCategory() {
-        val progress = collection.progress(listOf(brandMatch))
+        val progress = collection.progress(listOf(bossTag))
 
         assertEquals(CollectionId("c1"), progress.collectionId)
         assertEquals(3, progress.totalItems)

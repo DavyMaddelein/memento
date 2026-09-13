@@ -2,6 +2,10 @@ package com.memento.domain.collection
 
 import com.memento.domain.T1
 import com.memento.domain.T2
+import com.memento.domain.memento
+import com.memento.domain.model.Place
+import com.memento.domain.model.Tag
+import com.memento.domain.model.TastingNotes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -80,5 +84,67 @@ class KonbiniDrinkChecklistTest {
             assertTrue(category.id.isNotBlank())
             assertTrue(category.name.isNotBlank())
         }
+    }
+
+    @Test
+    fun itemMatchTagsContainOnlyTheItemId() {
+        collection.items.forEach { item ->
+            assertEquals(listOf(item.id), item.matchTags, "Item ${item.id} must only be tagged by its id")
+        }
+    }
+
+    @Test
+    fun brandOnlyMementoDoesNotCoverAnyItem() {
+        val suntory = memento(id = "suntory", place = Place("Konbini", brand = "Suntory"))
+
+        assertEquals(emptySet(), collection.completedItemIds(listOf(suntory)))
+        assertEquals(0, collection.calculateCompletionPercentage(listOf(suntory)))
+    }
+
+    @Test
+    fun itemLabelInTitleCoversItem() {
+        val boss = collection.items.single { it.id == "boss-rainbow" }
+        val match = memento(id = "m", title = "Tried the boss rainbow mountain today")
+
+        assertTrue(boss.isCoveredBy(match))
+        assertEquals(setOf("boss-rainbow"), collection.completedItemIds(listOf(match)))
+    }
+
+    @Test
+    fun itemLabelInTastingNotesCoversItem() {
+        val boss = collection.items.single { it.id == "boss-rainbow" }
+        val match = memento(id = "m", tastingNotes = TastingNotes(text = "BOSS Rainbow Mountain notes"))
+
+        assertTrue(boss.isCoveredBy(match))
+    }
+
+    @Test
+    fun itemIdTagCoversItem() {
+        val boss = collection.items.single { it.id == "boss-rainbow" }
+        val match = memento(id = "m", tags = listOf(Tag("BOSS-RAINBOW")))
+
+        assertTrue(boss.isCoveredBy(match))
+        assertEquals(setOf("boss-rainbow"), collection.completedItemIds(listOf(match)))
+    }
+
+    @Test
+    fun unrelatedMementoCoversNothing() {
+        val unrelated = memento(id = "m", title = "A quiet afternoon")
+
+        assertEquals(emptySet(), collection.completedItemIds(listOf(unrelated)))
+    }
+
+    @Test
+    fun oneProductEntryCoversExactlyOneItem() {
+        val match = memento(
+            id = "m",
+            title = "BOSS Rainbow Mountain",
+            place = Place("Konbini", brand = "Suntory"),
+        )
+
+        val completed = collection.completedItemIds(listOf(match))
+
+        assertEquals(setOf("boss-rainbow"), completed)
+        assertEquals((1 * 100) / collection.items.size, collection.calculateCompletionPercentage(listOf(match)))
     }
 }

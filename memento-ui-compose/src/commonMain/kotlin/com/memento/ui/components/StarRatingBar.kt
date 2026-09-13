@@ -12,6 +12,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.memento.domain.model.Rating
@@ -28,8 +30,15 @@ fun StarRatingBar(
     modifier: Modifier = Modifier,
 ) {
     val interactive = onRatingChanged != null
+    val rowModifier = if (interactive) {
+        modifier
+    } else {
+        modifier.semantics(mergeDescendants = true) {
+            contentDescription = "Rated $rating of ${Rating.MAX}"
+        }
+    }
     Row(
-        modifier = modifier,
+        modifier = rowModifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -38,11 +47,7 @@ fun StarRatingBar(
             val filled = starValue <= rating
             Icon(
                 imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
-                contentDescription = if (interactive) {
-                    "Set rating to $starValue"
-                } else {
-                    "Rated $rating of ${Rating.MAX}"
-                },
+                contentDescription = if (interactive) "Set rating to $starValue" else null,
                 tint = if (filled) {
                     MaterialTheme.colorScheme.primary
                 } else {

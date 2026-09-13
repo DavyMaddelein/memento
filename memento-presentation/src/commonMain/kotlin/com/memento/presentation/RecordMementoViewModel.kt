@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 /**
  * Immutable form state for creating or editing a keepsake.
@@ -48,6 +49,9 @@ data class RecordMementoUiState(
     val savedMementoId: MementoId? = null,
     val isResolvingPlace: Boolean = false,
     val placeLookupFailed: Boolean = false,
+    val occurredAt: Instant = Clock.System.now(),
+    val priceText: String = "",
+    val currencyCode: String = "JPY",
 )
 
 /** Convenience-store chains recognised in a reverse-geocoded place name. */
@@ -223,12 +227,30 @@ class RecordMementoViewModel(
         )
     }
 
+    fun onOccurredAtChanged(value: Instant) {
+        _state.value = _state.value.copy(occurredAt = value)
+    }
+
+    fun onPriceChanged(value: String) {
+        _state.value = _state.value.copy(
+            priceText = value,
+            errors = _state.value.errors.filterNot { it.field == "price" },
+        )
+    }
+
+    fun onCurrencyChanged(value: String) {
+        _state.value = _state.value.copy(
+            currencyCode = value.uppercase().take(3),
+            errors = _state.value.errors.filterNot { it.field == "currencyCode" },
+        )
+    }
+
     fun onSaveClicked() {
         // Ignore repeat taps: while a save is in flight or after this form has already
         // produced a memento, a second tap must not create a duplicate entry.
         if (_state.value.isSaving || _state.value.savedMementoId != null) return
         val memento = buildMemento()
-        val violations = MementoValidator.validate(memento)
+        val violations = validateRawInputs() + MementoValidator.validate(memento)
         if (violations.isNotEmpty()) {
             _state.value = _state.value.copy(errors = violations)
             return
@@ -272,6 +294,9 @@ class RecordMementoViewModel(
             notes = memento.tastingNotes?.text ?: memento.reflection,
             tags = memento.tags.map { it.value },
             collectionIds = memento.collectionIds,
+            occurredAt = memento.occurredAt,
+            priceText = memento.priceMinorUnits?.toString() ?: "",
+            currencyCode = memento.currencyCode ?: "JPY",
         )
     }
 
@@ -281,6 +306,30 @@ class RecordMementoViewModel(
 
     private fun addError(violation: ValidationViolation) {
         _state.value = _state.value.copy(errors = _state.value.errors + violation)
+    }
+
+    /**
+     * Validates the raw, unparsed text fields. [buildMemento] intentionally drops malformed price
+     * or currency input to `null`, so the aggregate [MementoValidator] cannot see it; these checks
+     * surface the problem to the form instead.
+     */
+    private fun validateRawInputs(): List<ValidationViolation> = buildList {
+        val price = _state.value.priceText.trim()
+        if (price.isNotEmpty()) {
+            val parsed = price.toLongOrNull()
+            if (parsed == null || parsed < 0) {
+                add(ValidationViolation(field = "price", message = "Enter a valid non-negative price"))
+            }
+        }
+        val currency = _state.value.currencyCode.trim()
+        if (currency.length != 3 || !currency.all { it.isLetter() }) {
+            add(
+                ValidationViolation(
+                    field = "currencyCode",
+                    message = "currencyCode must be a 3-letter ISO code",
+                ),
+            )
+        }
     }
 
     private fun buildMemento(): Memento {
@@ -310,7 +359,9 @@ class RecordMementoViewModel(
                 .distinctBy { it.lowercase() }
                 .map { Tag(it) },
             collectionIds = current.collectionIds,
-            occurredAt = now,
+            priceMinorUnits = current.priceText.trim().takeIf { it.isNotEmpty() }?.toLongOrNull(),
+            currencyCode = current.currencyCode.trim().uppercase().takeIf { it.length == 3 },
+            occurredAt = current.occurredAt,
             createdAt = now,
             updatedAt = now,
         )

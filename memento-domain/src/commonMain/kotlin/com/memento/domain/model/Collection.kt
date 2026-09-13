@@ -18,8 +18,8 @@ data class CollectionCategory(
 /**
  * One line on a keepsake checklist (e.g. "Boss Coffee Rainbow Mountain").
  *
- * A memento "covers" an item when the brand matches, or any of [matchTags] is present on the
- * memento, or the [label] appears in the memento title / tasting notes.
+ * A memento "covers" an item when the [label] appears in the memento title / tasting notes, or
+ * any of [matchTags] is present on the memento. A matching brand alone is not sufficient.
  */
 @Serializable
 data class ChecklistItem(

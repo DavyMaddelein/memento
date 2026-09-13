@@ -25,6 +25,7 @@ class AchievementsTest {
         label = "BOSS Rainbow Mountain",
         categoryId = "cat-coffee",
         brand = "Suntory",
+        matchTags = listOf("i-boss"),
         points = 10,
     )
     private val pocari = ChecklistItem(
@@ -32,6 +33,7 @@ class AchievementsTest {
         label = "Pocari Sweat",
         categoryId = "cat-coffee",
         brand = "Otsuka",
+        matchTags = listOf("i-pocari"),
         points = 15,
     )
     private val oi = ChecklistItem(
@@ -51,16 +53,16 @@ class AchievementsTest {
         createdAt = T1,
     )
 
-    private val bossBrand = memento(id = "m-brand", place = Place("Store", brand = "Suntory"), occurredAt = T1)
-    private val pocariBrand = memento(id = "m-pocari", place = Place("Store", brand = "Otsuka"), occurredAt = T2)
-    private val oiTag = memento(id = "m-oi", tags = listOf(com.memento.domain.model.Tag("Green-Tea")), occurredAt = T3)
+    private val bossCover = memento(id = "m-boss", tags = listOf(com.memento.domain.model.Tag("i-boss")), occurredAt = T1)
+    private val pocariCover = memento(id = "m-pocari", tags = listOf(com.memento.domain.model.Tag("i-pocari")), occurredAt = T2)
+    private val oiCover = memento(id = "m-oi", tags = listOf(com.memento.domain.model.Tag("Green-Tea")), occurredAt = T3)
 
     private fun boardOf(vararg mementos: com.memento.domain.model.Memento) =
         collection.achievementBoard(mementos.toList())
 
     @Test
     fun itemAchievementUsesEarliestCoveringMemento() {
-        val later = memento(id = "later", place = Place("Store", brand = "Suntory"), occurredAt = T3)
+        val later = memento(id = "later", title = "Another BOSS Rainbow Mountain run", occurredAt = T3)
         val earlier = memento(id = "earlier", title = "BOSS Rainbow Mountain", occurredAt = T2)
 
         val bossAchievement = boardOf(later, earlier).achievements.single { it.id == "item:i-boss" }
@@ -88,8 +90,16 @@ class AchievementsTest {
     }
 
     @Test
+    fun brandOnlyMementoDoesNotUnlockBrandItems() {
+        val brandOnly = memento(id = "brand-only", place = Place("Store", brand = "Suntory"), occurredAt = T1)
+
+        assertFalse(boss.isCoveredBy(brandOnly))
+        assertTrue(boardOf(brandOnly).achievements.none { it.earned })
+    }
+
+    @Test
     fun categoryEarnedOnlyWhenEveryItemIsCovered() {
-        val partial = boardOf(bossBrand).achievements.single { it.id == "category:cat-coffee" }
+        val partial = boardOf(bossCover).achievements.single { it.id == "category:cat-coffee" }
         assertFalse(partial.earned)
         assertEquals(1, partial.progress)
         assertEquals(2, partial.target)
@@ -98,7 +108,7 @@ class AchievementsTest {
         assertEquals(AchievementKind.CATEGORY, partial.kind)
         assertEquals(25, partial.points)
 
-        val completed = boardOf(bossBrand, pocariBrand).achievements.single { it.id == "category:cat-coffee" }
+        val completed = boardOf(bossCover, pocariCover).achievements.single { it.id == "category:cat-coffee" }
         assertTrue(completed.earned)
         assertEquals(2, completed.progress)
         assertEquals(T2, completed.earnedAt)
@@ -106,7 +116,7 @@ class AchievementsTest {
 
     @Test
     fun metaEarnedOnlyWhenEveryCategoryIsEarned() {
-        val board = boardOf(bossBrand, pocariBrand)
+        val board = boardOf(bossCover, pocariCover)
         val meta = assertNotNull(board.meta)
 
         assertFalse(meta.earned)
@@ -121,7 +131,7 @@ class AchievementsTest {
 
     @Test
     fun metaEarnedWhenAllCategoriesCompleteWithLatestTimestamp() {
-        val board = boardOf(bossBrand, pocariBrand, oiTag)
+        val board = boardOf(bossCover, pocariCover, oiCover)
         val meta = assertNotNull(board.meta)
 
         assertTrue(meta.earned)
@@ -141,12 +151,12 @@ class AchievementsTest {
         assertEquals(0, empty.percentage)
         assertFalse(empty.isComplete)
 
-        val oneItem = boardOf(bossBrand)
+        val oneItem = boardOf(bossCover)
         assertEquals(10, oneItem.earnedPoints)
         assertEquals(1, oneItem.earnedCount)
         assertEquals(3, oneItem.percentage)
 
-        val everything = boardOf(bossBrand, pocariBrand, oiTag)
+        val everything = boardOf(bossCover, pocariCover, oiCover)
         assertEquals(255, everything.earnedPoints)
         assertEquals(6, everything.earnedCount)
         assertEquals(100, everything.percentage)
@@ -155,7 +165,7 @@ class AchievementsTest {
 
     @Test
     fun achievementsAreOrderedCategoriesThenItemsThenMeta() {
-        val ids = boardOf(bossBrand, pocariBrand, oiTag).achievements.map { it.id }
+        val ids = boardOf(bossCover, pocariCover, oiCover).achievements.map { it.id }
 
         assertEquals(
             listOf(
@@ -172,7 +182,7 @@ class AchievementsTest {
 
     @Test
     fun achievementIdsAreUnique() {
-        val ids = boardOf(bossBrand, pocariBrand, oiTag).achievements.map { it.id }
+        val ids = boardOf(bossCover, pocariCover, oiCover).achievements.map { it.id }
 
         assertEquals(ids.size, ids.toSet().size)
     }
@@ -180,7 +190,7 @@ class AchievementsTest {
     @Test
     fun emptyCollectionHasEmptyBoard() {
         val empty = Collection(id = CollectionId("empty"), name = "Empty", createdAt = T1)
-        val board = empty.achievementBoard(listOf(bossBrand))
+        val board = empty.achievementBoard(listOf(bossCover))
 
         assertTrue(board.achievements.isEmpty())
         assertNull(board.meta)
@@ -210,7 +220,7 @@ class AchievementsTest {
     fun collectionWithoutCategoriesHasNoMetaButStillHasItems() {
         val noCategories = collection.copy(categories = emptyList())
 
-        val board = noCategories.achievementBoard(listOf(bossBrand))
+        val board = noCategories.achievementBoard(listOf(bossCover))
 
         assertNull(board.meta)
         assertTrue(board.achievements.none { it.kind == AchievementKind.META })
@@ -220,7 +230,7 @@ class AchievementsTest {
 
     @Test
     fun existingProgressBehaviourIsUnchanged() {
-        val progress = collection.progress(listOf(bossBrand))
+        val progress = collection.progress(listOf(bossCover))
 
         assertEquals(3, progress.totalItems)
         assertEquals(1, progress.completedItems)
