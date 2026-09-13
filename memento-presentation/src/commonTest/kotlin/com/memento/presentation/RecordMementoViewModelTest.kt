@@ -14,6 +14,7 @@ import com.memento.storage.memory.InMemoryMementoRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -344,5 +345,154 @@ class RecordMementoViewModelTest {
 
         viewModel.dispose()
         advanceUntilIdle()
+    }
+
+    @Test
+    fun occurredAtChangedIsPersisted() = runTest {
+        val repository = InMemoryMementoRepository()
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+        val fixed = Instant.parse("2026-09-13T08:30:00Z")
+
+        viewModel.onAddFromCamera()
+        viewModel.onTitleChanged("Tokyo Konbini")
+        viewModel.onOccurredAtChanged(fixed)
+        advanceUntilIdle()
+
+        assertEquals(fixed, viewModel.state.value.occurredAt)
+
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.observeAllMementos().first().size)
+        assertEquals(fixed, repository.observeAllMementos().first().single().occurredAt)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun priceIsPersistedAndRoundTripsThroughLoadForEdit() = runTest {
+        val repository = InMemoryMementoRepository()
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onAddFromCamera()
+        viewModel.onTitleChanged("Tokyo Konbini")
+        viewModel.onPriceChanged("165")
+        advanceUntilIdle()
+
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        val persisted = repository.observeAllMementos().first().single()
+        assertEquals(165L, persisted.priceMinorUnits)
+
+        val editViewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+        editViewModel.loadForEdit(persisted)
+        assertEquals("165", editViewModel.state.value.priceText)
+
+        viewModel.dispose()
+        editViewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun invalidPriceSurfacesErrorAndBlocksSave() = runTest {
+        for (invalid in listOf("abc", "-5")) {
+            val repository = InMemoryMementoRepository()
+            val viewModel = RecordMementoViewModel(
+                mementoRepository = repository,
+                locationProvider = FakeLocationProvider(),
+                photoPicker = FakePhotoPickerService(),
+                scope = newViewModelScope(),
+            )
+
+            viewModel.onAddFromCamera()
+            viewModel.onTitleChanged("Tokyo Konbini")
+            viewModel.onPriceChanged(invalid)
+            advanceUntilIdle()
+
+            viewModel.onSaveClicked()
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel.state.value.errors.any { it.field == "price" },
+                "expected a price error for \"$invalid\"",
+            )
+            assertNull(viewModel.state.value.savedMementoId)
+            assertTrue(repository.observeAllMementos().first().isEmpty())
+
+            viewModel.dispose()
+            advanceUntilIdle()
+        }
+    }
+
+    @Test
+    fun invalidCurrencySurfacesErrorAndBlocksSave() = runTest {
+        val repository = InMemoryMementoRepository()
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onAddFromCamera()
+        viewModel.onTitleChanged("Tokyo Konbini")
+        viewModel.onCurrencyChanged("JP")
+        advanceUntilIdle()
+
+        assertEquals("JP", viewModel.state.value.currencyCode)
+
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.errors.any { it.field == "currencyCode" })
+        assertNull(viewModel.state.value.savedMementoId)
+        assertTrue(repository.observeAllMementos().first().isEmpty())
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun currencyIsUppercasedAndTruncatedToThreeChars() = runTest {
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = InMemoryMementoRepository(),
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onCurrencyChanged("jpyx")
+        assertEquals("JPY", viewModel.state.value.currencyCode)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun isoDateHelpersRoundTrip() {
+        val instant = Instant.parse("2026-09-13T00:00:00Z")
+        assertEquals("2026-09-13", formatIsoDate(instant))
+        assertEquals(instant, parseIsoDateOrNull("2026-09-13"))
+
+        assertNull(parseIsoDateOrNull("not-a-date"))
+        assertNull(parseIsoDateOrNull("2026-13-01"))
+        assertNull(parseIsoDateOrNull(""))
     }
 }

@@ -29,6 +29,7 @@ import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
 import com.memento.ui.screens.ExportImportDialog
 import com.memento.ui.screens.MementoCard
+import com.memento.ui.screens.MementoDetailScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
@@ -94,6 +95,23 @@ private fun MementoCardPreview() {
             onClick = {},
             onDelete = {},
             modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun MementoDetailScreenPreview() {
+    MementoTheme {
+        MementoDetailScreen(
+            memento = bossCoffee.copy(
+                priceMinorUnits = 158,
+                currencyCode = "JPY",
+                collectionIds = listOf(CollectionId("collection-1")),
+            ),
+            onBack = {},
+            onEdit = {},
+            onDelete = {},
         )
     }
 }

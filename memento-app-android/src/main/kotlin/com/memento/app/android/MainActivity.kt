@@ -20,6 +20,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,6 +49,7 @@ import com.memento.presentation.TimelineViewModel
 import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
 import com.memento.ui.screens.ExportImportDialog
+import com.memento.ui.screens.MementoDetailScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
@@ -56,11 +58,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
-/** The three destinations of the shell. The backup flow is a dialog, not a destination. */
+/** The shell's destinations. The backup flow is a dialog, not a destination. */
 private sealed interface Screen {
     data object Timeline : Screen
     data object Record : Screen
     data object Collection : Screen
+    data class Detail(val memento: Memento) : Screen
 }
 
 /**
@@ -230,7 +233,7 @@ private fun MementoApp() {
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = screen == Screen.Timeline,
+                    selected = screen == Screen.Timeline || screen is Screen.Detail,
                     onClick = { screen = Screen.Timeline },
                     icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text("Timeline") },
@@ -265,17 +268,14 @@ private fun MementoApp() {
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            when (screen) {
+            when (val current = screen) {
                 Screen.Timeline -> TimelineScreen(
                     state = timelineState,
                     images = { memento -> timelineImages[memento.id.value].orEmpty() },
                     onSearchQueryChanged = timelineViewModel::onSearchQueryChanged,
                     onTagToggled = timelineViewModel::onFilterTagToggled,
                     onSortSelected = timelineViewModel::onSortOrderSelected,
-                    onMementoClick = { memento ->
-                        recordViewModel.loadForEdit(memento)
-                        screen = Screen.Record
-                    },
+                    onMementoClick = { memento -> screen = Screen.Detail(memento) },
                     onDeleteMemento = timelineViewModel::onDeleteMemento,
                     onUndoDelete = timelineViewModel::onRestoreMemento,
                     onAddMemento = {
@@ -301,6 +301,9 @@ private fun MementoApp() {
                     onTagRemoved = recordViewModel::onTagRemoved,
                     onSave = recordViewModel::onSaveClicked,
                     onBack = { screen = Screen.Timeline },
+                    onOccurredAtChanged = recordViewModel::onOccurredAtChanged,
+                    onPriceChanged = recordViewModel::onPriceChanged,
+                    onCurrencyChanged = recordViewModel::onCurrencyChanged,
                 )
 
                 Screen.Collection -> CollectionDetailScreen(
@@ -316,6 +319,32 @@ private fun MementoApp() {
                     },
                     onAcknowledgeEarned = collectionViewModel::acknowledgeEarned,
                 )
+
+                is Screen.Detail -> {
+                    val memento = current.memento
+                    MementoDetailScreen(
+                        memento = memento,
+                        images = timelineImages[memento.id.value].orEmpty(),
+                        onBack = { screen = Screen.Timeline },
+                        onEdit = {
+                            recordViewModel.loadForEdit(memento)
+                            screen = Screen.Record
+                        },
+                        onDelete = {
+                            timelineViewModel.onDeleteMemento(memento.id)
+                            screen = Screen.Timeline
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "Keepsake deleted",
+                                    actionLabel = "Undo",
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    timelineViewModel.onRestoreMemento(memento)
+                                }
+                            }
+                        },
+                    )
+                }
             }
         }
     }
@@ -371,6 +400,18 @@ private fun rememberMementoImages(
                 cache[memento.id.value] = loader.load(memento.media)
             }
         }
+        // Evict entries no longer referenced by the visible mementos, then enforce a hard cap.
+        val referenced = mementos.mapTo(mutableSetOf()) { it.id.value }
+        cache.keys.toList().filterNot { it in referenced }.forEach { cache.remove(it) }
+        var overflow = cache.size - MAX_CACHED_MEMENTOS
+        while (overflow > 0) {
+            val oldest = cache.keys.firstOrNull() ?: break
+            cache.remove(oldest)
+            overflow--
+        }
     }
     return cache
 }
+
+/** Upper bound on decoded mementos kept alive by the timeline image cache. */
+private const val MAX_CACHED_MEMENTOS = 256

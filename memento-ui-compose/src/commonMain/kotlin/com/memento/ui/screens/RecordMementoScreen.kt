@@ -1,6 +1,8 @@
 package com.memento.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -9,15 +11,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,15 +44,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
 import com.memento.domain.validation.ValidationViolation
 import com.memento.presentation.RecordMementoUiState
+import com.memento.presentation.formatIsoDate
 import com.memento.ui.components.PhotoStrip
 import com.memento.ui.components.StarRatingBar
 import com.memento.ui.components.TagChip
 import com.memento.ui.components.TagChipFlow
+import kotlinx.datetime.Instant
 
 private val QuickBrands = listOf(
     "7-Eleven",
@@ -78,10 +89,14 @@ fun RecordMementoScreen(
     onTagRemoved: (String) -> Unit,
     onSave: () -> Unit,
     onBack: () -> Unit = {},
+    onOccurredAtChanged: (Instant) -> Unit = {},
+    onPriceChanged: (String) -> Unit = {},
+    onCurrencyChanged: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val errorsByField = state.errors.groupBy { it.field }
     var tagInput by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -262,6 +277,49 @@ fun RecordMementoScreen(
             )
             FieldErrors(errorsByField["title"])
 
+            SectionLabel("When")
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = formatIsoDate(state.occurredAt),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Date") },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.CalendarMonth,
+                            contentDescription = "Pick a date",
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { showDatePicker = true },
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = state.priceText,
+                    onValueChange = onPriceChanged,
+                    label = { Text("Price") },
+                    singleLine = true,
+                    isError = errorsByField["price"] != null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = state.currencyCode,
+                    onValueChange = onCurrencyChanged,
+                    label = { Text("Currency") },
+                    singleLine = true,
+                    isError = errorsByField["currencyCode"] != null,
+                    modifier = Modifier.width(120.dp),
+                )
+            }
+            FieldErrors(errorsByField["price"])
+            FieldErrors(errorsByField["currencyCode"])
+
             StarRatingBar(rating = state.rating, onRatingChanged = onRatingChanged)
 
             OutlinedTextField(
@@ -299,6 +357,34 @@ fun RecordMementoScreen(
             FieldErrors(errorsByField["tags"])
 
             FieldErrors(errorsByField["save"])
+        }
+    }
+
+    if (showDatePicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = state.occurredAt.toEpochMilliseconds(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { millis ->
+                            onOccurredAtChanged(Instant.fromEpochMilliseconds(millis))
+                        }
+                        showDatePicker = false
+                    },
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            },
+        ) {
+            DatePicker(state = pickerState)
         }
     }
 }

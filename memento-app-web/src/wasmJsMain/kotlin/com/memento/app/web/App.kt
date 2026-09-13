@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +45,7 @@ import com.memento.ui.image.decodeImage
 import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
 import com.memento.ui.screens.ExportImportDialog
+import com.memento.ui.screens.MementoDetailScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
@@ -57,7 +59,11 @@ private sealed interface Screen {
     data object Timeline : Screen
     data object Record : Screen
     data object Collection : Screen
+    data class Detail(val memento: Memento) : Screen
 }
+
+/** Upper bound on decoded media kept alive by the web image cache. */
+private const val MAX_CACHED_IMAGES = 256
 
 /**
  * Web dependency graph. Constructed once per composition; the [scope] is the remembered
@@ -130,16 +136,22 @@ fun App() {
 
         LaunchedEffect(mediaReferences) {
             val missing = mediaReferences.filter { it.id.value !in imageCache }
-            if (missing.isNotEmpty()) {
-                val loaded = missing
-                    .mapNotNull { reference ->
-                        graph.mediaStorageService.readMedia(reference).getOrNull()?.let { bytes ->
-                            reference.id.value to decodeImage(bytes)
-                        }
+            val loaded = missing
+                .mapNotNull { reference ->
+                    graph.mediaStorageService.readMedia(reference).getOrNull()?.let { bytes ->
+                        reference.id.value to decodeImage(bytes)
                     }
-                    .toMap()
-                imageCache = imageCache + loaded
+                }
+                .toMap()
+            // Keep only media still referenced by the timeline or the record form, then cap size.
+            val referenced = mediaReferences.mapTo(mutableSetOf()) { it.id.value }
+            var updated = (imageCache + loaded).filterKeys { it in referenced }
+            if (updated.size > MAX_CACHED_IMAGES) {
+                updated = updated.entries.toList()
+                    .takeLast(MAX_CACHED_IMAGES)
+                    .associate { it.key to it.value }
             }
+            imageCache = updated
         }
 
         val timelineImages: (Memento) -> List<ImageBitmap?> = { memento ->
@@ -160,17 +172,14 @@ fun App() {
             }
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                when (screen) {
+                when (val current = screen) {
                     Screen.Timeline -> TimelineScreen(
                         state = timelineState,
                         images = timelineImages,
                         onSearchQueryChanged = graph.timelineViewModel::onSearchQueryChanged,
                         onTagToggled = graph.timelineViewModel::onFilterTagToggled,
                         onSortSelected = graph.timelineViewModel::onSortOrderSelected,
-                        onMementoClick = { memento ->
-                            graph.recordViewModel.loadForEdit(memento)
-                            screen = Screen.Record
-                        },
+                        onMementoClick = { memento -> screen = Screen.Detail(memento) },
                         onDeleteMemento = graph.timelineViewModel::onDeleteMemento,
                         onUndoDelete = graph.timelineViewModel::onRestoreMemento,
                         onAddMemento = {
@@ -196,6 +205,9 @@ fun App() {
                         onTagRemoved = graph.recordViewModel::onTagRemoved,
                         onSave = graph.recordViewModel::onSaveClicked,
                         onBack = { screen = Screen.Timeline },
+                        onOccurredAtChanged = graph.recordViewModel::onOccurredAtChanged,
+                        onPriceChanged = graph.recordViewModel::onPriceChanged,
+                        onCurrencyChanged = graph.recordViewModel::onCurrencyChanged,
                     )
 
                     Screen.Collection -> CollectionDetailScreen(
@@ -211,6 +223,32 @@ fun App() {
                         },
                         onAcknowledgeEarned = graph.collectionViewModel::acknowledgeEarned,
                     )
+
+                    is Screen.Detail -> {
+                        val memento = current.memento
+                        MementoDetailScreen(
+                            memento = memento,
+                            images = memento.media.map { imageCache[it.id.value] },
+                            onBack = { screen = Screen.Timeline },
+                            onEdit = {
+                                graph.recordViewModel.loadForEdit(memento)
+                                screen = Screen.Record
+                            },
+                            onDelete = {
+                                graph.timelineViewModel.onDeleteMemento(memento.id)
+                                screen = Screen.Timeline
+                                scope.launch {
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = "Keepsake deleted",
+                                        actionLabel = "Undo",
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        graph.timelineViewModel.onRestoreMemento(memento)
+                                    }
+                                }
+                            },
+                        )
+                    }
                 }
                 SnackbarHost(
                     hostState = snackbarHostState,

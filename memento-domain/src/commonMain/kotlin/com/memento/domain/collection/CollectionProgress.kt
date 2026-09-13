@@ -30,15 +30,22 @@ data class CollectionProgress(
 }
 
 /**
- * True when a memento counts towards a checklist item. Matching is intentionally forgiving:
- * brand equality, any shared match tag, or the label appearing in the title / tasting notes.
+ * True when a memento counts towards this checklist item.
+ *
+ * Coverage requires a strong, product-level match, so a matching brand alone is deliberately
+ * not sufficient: recording one drink from a brand must not unlock every item from that brand.
+ * The item is covered when either
+ *  - its [ChecklistItem.label] appears (case-insensitively, after trimming) in the memento's
+ *    `title` or `tastingNotes.text`, or
+ *  - one of its [ChecklistItem.matchTags] equals (case-insensitively) one of the memento's tags.
+ *
+ * This function is pure and does not mutate its arguments.
  */
 fun ChecklistItem.isCoveredBy(memento: Memento): Boolean {
-    if (brand != null && memento.place?.brand?.equals(brand, ignoreCase = true) == true) return true
-    if (matchTags.any { tag -> memento.tags.any { it.value.equals(tag, ignoreCase = true) } }) return true
-    if (memento.title.contains(label, ignoreCase = true)) return true
-    if (memento.tastingNotes?.text?.contains(label, ignoreCase = true) == true) return true
-    return false
+    val itemLabel = label.trim()
+    if (memento.title.contains(itemLabel, ignoreCase = true)) return true
+    if (memento.tastingNotes?.text?.contains(itemLabel, ignoreCase = true) == true) return true
+    return matchTags.any { tag -> memento.tags.any { it.value.equals(tag, ignoreCase = true) } }
 }
 
 fun Collection.completedItemIds(mementos: List<Memento>): Set<String> =
