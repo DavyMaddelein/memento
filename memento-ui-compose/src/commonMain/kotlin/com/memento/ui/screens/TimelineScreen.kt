@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,6 +24,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -66,6 +68,7 @@ fun TimelineScreen(
     onDeleteMemento: (MementoId) -> Unit,
     onUndoDelete: (Memento) -> Unit = {},
     onAddMemento: () -> Unit,
+    onOpenPlaces: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -75,7 +78,19 @@ fun TimelineScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(title = { Text("Mementos") })
+            TopAppBar(
+                title = { Text("Mementos") },
+                actions = {
+                    if (onOpenPlaces != null) {
+                        IconButton(onClick = onOpenPlaces) {
+                            Icon(
+                                imageVector = Icons.Filled.Place,
+                                contentDescription = "Places",
+                            )
+                        }
+                    }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
