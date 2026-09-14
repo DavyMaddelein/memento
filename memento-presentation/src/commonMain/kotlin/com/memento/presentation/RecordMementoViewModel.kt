@@ -45,6 +45,7 @@ data class RecordMementoUiState(
     val title: String = "",
     val rating: Int = 0,
     val notes: String = "",
+    val flavorTags: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
     val collectionIds: List<CollectionId> = emptyList(),
     val errors: List<ValidationViolation> = emptyList(),
@@ -58,8 +59,18 @@ data class RecordMementoUiState(
     val availableCollections: List<Collection> = emptyList(),
 )
 
-/** Convenience-store chains recognised in a reverse-geocoded place name. */
-private val KNOWN_BRANDS = listOf("7-Eleven", "Lawson", "FamilyMart", "MiniStop", "Daily Yamazaki")
+/** Convenience-store chains and their English/Japanese aliases for reverse-geocoding resolution. */
+private data class BrandMapping(val canonicalName: String, val aliases: List<String>)
+
+private val KNOWN_BRAND_MAPPINGS = listOf(
+    BrandMapping("7-Eleven", listOf("7-eleven", "7 eleven", "セブン-イレブン", "セブンイレブン", "seven & i", "seven-eleven")),
+    BrandMapping("Lawson", listOf("lawson", "ローソン", "natural lawson", "ナチュラルローソン", "lawson store 100", "ローソンストア100")),
+    BrandMapping("FamilyMart", listOf("familymart", "family mart", "ファミリーマート", "ファミマ")),
+    BrandMapping("MiniStop", listOf("ministop", "mini stop", "ミニストップ")),
+    BrandMapping("Daily Yamazaki", listOf("daily yamazaki", "デイリーヤマザキ", "ヤマザキ")),
+    BrandMapping("NewDays", listOf("newdays", "new days", "ニューデイズ")),
+    BrandMapping("Seicomart", listOf("seicomart", "seico mart", "セイコーマート", "セコマ")),
+)
 
 /**
  * MVI ViewModel driving the "record a memento" form: media capture, location acquisition, place
@@ -188,7 +199,30 @@ class RecordMementoViewModel(
     private fun knownBrandIn(place: ResolvedPlace): String? {
         val haystack = listOfNotNull(place.name, place.displayName).joinToString(" ").lowercase()
         if (haystack.isEmpty()) return null
-        return KNOWN_BRANDS.firstOrNull { haystack.contains(it.lowercase()) }
+        return KNOWN_BRAND_MAPPINGS.firstOrNull { mapping ->
+            mapping.aliases.any { alias -> haystack.contains(alias.lowercase()) }
+        }?.canonicalName
+    }
+
+    fun onFlavorTagToggled(tag: String) {
+        val trimmed = tag.trim()
+        if (trimmed.isEmpty()) return
+        val current = _state.value.flavorTags
+        _state.value = _state.value.copy(
+            flavorTags = if (current.any { it.equals(trimmed, ignoreCase = true) }) {
+                current.filterNot { it.equals(trimmed, ignoreCase = true) }
+            } else {
+                current + trimmed
+            },
+        )
+    }
+
+    fun onQuickPriceSelected(price: Long) {
+        _state.value = _state.value.copy(
+            priceText = price.toString(),
+            currencyCode = "JPY",
+            errors = _state.value.errors.filterNot { it.field == "price" || it.field == "currencyCode" },
+        )
     }
 
     fun onPlaceNameChanged(value: String) {
@@ -308,6 +342,7 @@ class RecordMementoViewModel(
             title = memento.title,
             rating = memento.rating?.stars ?: 0,
             notes = memento.tastingNotes?.text ?: memento.reflection,
+            flavorTags = memento.tastingNotes?.flavorTags.orEmpty(),
             tags = memento.tags.map { it.value },
             collectionIds = memento.collectionIds,
             occurredAt = memento.occurredAt,
@@ -367,8 +402,13 @@ class RecordMementoViewModel(
             },
             media = current.media,
             rating = current.rating.takeIf { it in Rating.MIN..Rating.MAX }?.let { Rating(it) },
-            tastingNotes = current.notes.trim().takeIf { it.isNotEmpty() }?.let {
-                TastingNotes(text = it)
+            tastingNotes = if (current.notes.trim().isNotEmpty() || current.flavorTags.isNotEmpty()) {
+                TastingNotes(
+                    text = current.notes.trim(),
+                    flavorTags = current.flavorTags,
+                )
+            } else {
+                null
             },
             tags = current.tags
                 .map { it.trim() }

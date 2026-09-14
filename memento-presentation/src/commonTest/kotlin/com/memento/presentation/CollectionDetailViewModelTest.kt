@@ -36,10 +36,10 @@ class CollectionDetailViewModelTest {
         assertFalse(initial.isLoading)
         assertEquals(collection, initial.collection)
         val initialProgress = assertNotNull(initial.progress)
-        assertEquals(24, initialProgress.totalItems)
+        assertEquals(collection.items.size, initialProgress.totalItems)
         assertEquals(0, initialProgress.completedItems)
         assertEquals(0, initialProgress.percentage)
-        assertEquals(6, initialProgress.categories.size)
+        assertEquals(collection.categories.size, initialProgress.categories.size)
         assertEquals(
             0,
             initialProgress.categories.first {
@@ -55,19 +55,19 @@ class CollectionDetailViewModelTest {
         val updated = viewModel.state.value.progress
         assertNotNull(updated)
         assertEquals(1, updated.completedItems)
-        assertEquals(4, updated.percentage)
+        assertEquals((1 * 100) / collection.items.size, updated.percentage)
         assertEquals(setOf("boss-rainbow"), updated.completedItemIds)
 
         val canned = updated.categories.first {
             it.categoryId == KonbiniDrinkChecklist.CATEGORY_CANNED_COFFEE
         }
-        assertEquals(6, canned.total)
+        assertEquals(collection.items.count { it.categoryId == KonbiniDrinkChecklist.CATEGORY_CANNED_COFFEE }, canned.total)
         assertEquals(1, canned.completed)
 
         val greenTea = updated.categories.first {
             it.categoryId == KonbiniDrinkChecklist.CATEGORY_GREEN_TEA
         }
-        assertEquals(4, greenTea.total)
+        assertEquals(collection.items.count { it.categoryId == KonbiniDrinkChecklist.CATEGORY_GREEN_TEA }, greenTea.total)
         assertEquals(0, greenTea.completed)
 
         viewModel.dispose()
@@ -115,9 +115,34 @@ class CollectionDetailViewModelTest {
         val state = viewModel.state.value
         assertTrue(state.recentlyEarned.isEmpty())
         val board = assertNotNull(state.board)
-        assertEquals(31, board.totalCount)
+        assertEquals(collection.items.size + collection.categories.size + 1, board.totalCount)
         assertEquals(0, board.earnedCount)
         assertNotNull(board.meta)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun toggleHideCompletedUpdatesState() = runTest {
+        val collection = KonbiniDrinkChecklist.create(Instant.fromEpochMilliseconds(0))
+        val collectionRepository = InMemoryCollectionRepository()
+        collectionRepository.saveCollection(collection)
+        val mementoRepository = InMemoryMementoRepository()
+        val viewModel = CollectionDetailViewModel(
+            collectionRepository = collectionRepository,
+            mementoRepository = mementoRepository,
+            scope = newViewModelScope(),
+        )
+
+        viewModel.selectCollection(collection.id)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.hideCompleted)
+        viewModel.onToggleHideCompleted()
+        assertTrue(viewModel.state.value.hideCompleted)
+        viewModel.onToggleHideCompleted()
+        assertFalse(viewModel.state.value.hideCompleted)
 
         viewModel.dispose()
         advanceUntilIdle()

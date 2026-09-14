@@ -56,6 +56,7 @@ import com.memento.domain.model.Collection
 import com.memento.domain.model.Memento
 import com.memento.presentation.CollectionProgressUiState
 import com.memento.presentation.formatIsoDate
+import com.memento.ui.components.TagChip
 import com.memento.ui.theme.AchievementColors
 import com.memento.ui.theme.tierColor
 import com.memento.ui.theme.tierContainer
@@ -77,6 +78,7 @@ fun CollectionDetailScreen(
     onBack: () -> Unit = {},
     onRecordItem: (ChecklistItem) -> Unit = {},
     onAcknowledgeEarned: () -> Unit = {},
+    onToggleHideCompleted: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -141,6 +143,7 @@ fun CollectionDetailScreen(
                         collection = collection,
                         state = state,
                         onRecordItem = onRecordItem,
+                        onToggleHideCompleted = onToggleHideCompleted,
                     )
                 }
             }
@@ -166,6 +169,7 @@ private fun AchievementBody(
     collection: Collection,
     state: CollectionProgressUiState,
     onRecordItem: (ChecklistItem) -> Unit,
+    onToggleHideCompleted: () -> Unit,
 ) {
     val board = state.board
     val progress = state.progress
@@ -194,6 +198,20 @@ private fun AchievementBody(
             percent = percent,
         )
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            TagChip(
+                label = if (state.hideCompleted) "Hiding completed" else "Show uncompleted only",
+                selected = state.hideCompleted,
+                onClick = onToggleHideCompleted,
+            )
+        }
+
         if (board != null) {
             board.meta?.let { meta ->
                 MetaAchievementCard(
@@ -204,6 +222,7 @@ private fun AchievementBody(
             AchievementSections(
                 sections = buildSections(collection, board),
                 collection = collection,
+                hideCompleted = state.hideCompleted,
                 onRecordItem = onRecordItem,
             )
         } else {
@@ -371,6 +390,7 @@ private fun MetaAchievementCard(
 private fun AchievementSections(
     sections: List<AchievementSection>,
     collection: Collection,
+    hideCompleted: Boolean = false,
     onRecordItem: (ChecklistItem) -> Unit,
 ) {
     Column(
@@ -380,19 +400,22 @@ private fun AchievementSections(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         sections.forEach { section ->
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SectionHeader(section)
-                section.items.forEach { achievement ->
-                    AchievementRow(
-                        achievement = achievement,
-                        checklistItem = achievement.itemId?.let { itemId ->
-                            collection.items.firstOrNull { it.id == itemId }
-                        },
-                        onRecordItem = onRecordItem,
-                    )
+            val visibleItems = if (hideCompleted) section.items.filter { !it.earned } else section.items
+            if (visibleItems.isNotEmpty() || !hideCompleted) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SectionHeader(section)
+                    visibleItems.forEach { achievement ->
+                        AchievementRow(
+                            achievement = achievement,
+                            checklistItem = achievement.itemId?.let { itemId ->
+                                collection.items.firstOrNull { it.id == itemId }
+                            },
+                            onRecordItem = onRecordItem,
+                        )
+                    }
                 }
             }
         }
@@ -497,6 +520,16 @@ private fun AchievementRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                val jpLabel = checklistItem?.japaneseLabel
+                if (!jpLabel.isNullOrBlank()) {
+                    Text(
+                        text = jpLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (earned) AchievementColors.Gold else AchievementColors.Silver,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     text = achievement.description,
                     style = MaterialTheme.typography.bodyMedium,
