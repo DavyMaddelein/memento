@@ -87,10 +87,58 @@ class KonbiniDrinkChecklistTest {
     }
 
     @Test
-    fun itemMatchTagsContainOnlyTheItemId() {
+    fun itemsHaveJapaneseLabels() {
         collection.items.forEach { item ->
-            assertEquals(listOf(item.id), item.matchTags, "Item ${item.id} must only be tagged by its id")
+            assertTrue(!item.japaneseLabel.isNullOrBlank(), "Item ${item.id} should have a Japanese label")
         }
+    }
+
+    @Test
+    fun japaneseLabelInTitleCoversItem() {
+        val ayataka = collection.items.single { it.id == "ayataka" }
+        val match = memento(id = "m", title = "Cold 綾鷹 from 7-Eleven")
+
+        assertTrue(ayataka.isCoveredBy(match))
+        assertEquals(setOf("ayataka"), collection.completedItemIds(listOf(match)))
+    }
+
+    @Test
+    fun japaneseLabelInTastingNotesCoversItem() {
+        val ayataka = collection.items.single { it.id == "ayataka" }
+        val match = memento(id = "m", title = "Green tea", tastingNotes = TastingNotes(text = "Tasted delicious 綾鷹"))
+
+        assertTrue(ayataka.isCoveredBy(match))
+    }
+
+    @Test
+    fun japaneseLabelInTagsCoversItem() {
+        val ayataka = collection.items.single { it.id == "ayataka" }
+        val match = memento(id = "m", tags = listOf(Tag("綾鷹")))
+
+        assertTrue(ayataka.isCoveredBy(match))
+        assertEquals(setOf("ayataka"), collection.completedItemIds(listOf(match)))
+    }
+
+    @Test
+    fun customConfigCanBeLoadedDynamically() {
+        val customJson = """
+        {
+          "id": "custom-drinks",
+          "name": "Custom Collection",
+          "categories": [
+            { "id": "tea", "name": "Tea", "bonusPoints": 50 }
+          ],
+          "items": [
+            { "id": "green-tea", "label": "Green Tea", "japaneseLabel": "緑茶", "categoryId": "tea", "brand": "Brand", "matchTags": ["tea"], "points": 20 }
+          ]
+        }
+        """.trimIndent()
+
+        val customCollection = KonbiniDrinkChecklist.loadFromJson(customJson, T1)
+        assertEquals("custom-drinks", customCollection.id.value)
+        assertEquals(1, customCollection.categories.size)
+        assertEquals(1, customCollection.items.size)
+        assertEquals("緑茶", customCollection.items[0].japaneseLabel)
     }
 
     @Test

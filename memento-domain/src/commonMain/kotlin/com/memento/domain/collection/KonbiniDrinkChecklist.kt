@@ -5,75 +5,501 @@ import com.memento.domain.model.Collection
 import com.memento.domain.model.CollectionCategory
 import com.memento.domain.model.CollectionId
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/**
+ * Serializable DTO for loading collections from external configuration files.
+ */
+@Serializable
+data class CollectionConfig(
+    val id: String,
+    val name: String,
+    val description: String = "",
+    val metaAchievementName: String? = null,
+    val metaAchievementDescription: String? = null,
+    val categories: List<CategoryConfig> = emptyList(),
+    val items: List<ItemConfig> = emptyList(),
+) {
+    fun toCollection(createdAt: Instant): Collection = Collection(
+        id = CollectionId(id),
+        name = name,
+        description = description,
+        categories = categories.map { CollectionCategory(id = it.id, name = it.name, bonusPoints = it.bonusPoints) },
+        items = items.map {
+            ChecklistItem(
+                id = it.id,
+                label = it.label,
+                japaneseLabel = it.japaneseLabel,
+                categoryId = it.categoryId,
+                brand = it.brand,
+                matchTags = it.matchTags,
+                points = it.points,
+            )
+        },
+        createdAt = createdAt,
+        metaAchievementName = metaAchievementName,
+        metaAchievementDescription = metaAchievementDescription,
+    )
+}
+
+@Serializable
+data class CategoryConfig(
+    val id: String,
+    val name: String,
+    val bonusPoints: Int = 25,
+)
+
+@Serializable
+data class ItemConfig(
+    val id: String,
+    val label: String,
+    val japaneseLabel: String? = null,
+    val categoryId: String? = null,
+    val brand: String? = null,
+    val matchTags: List<String> = emptyList(),
+    val points: Int = 10,
+)
 
 /**
  * Seed factory for the flagship "Japan Konbini Drinks 2026" checklist.
+ * Configured via structured JSON to enable rapid additions and automated achievement derivations.
  */
 object KonbiniDrinkChecklist {
     val COLLECTION_ID = CollectionId("japan-konbini-drinks-2026")
 
     val CATEGORY_CANNED_COFFEE = "canned-coffee"
     val CATEGORY_GREEN_TEA = "green-tea"
-    val CATEGORY_SPORTS = "sports-drinks"
+    val CATEGORY_HOT_CABINET = "hot-cabinet"
     val CATEGORY_MILK_TEA = "milk-tea"
+    val CATEGORY_SPORTS = "sports-energy"
     val CATEGORY_FRUIT_SODA = "fruit-soda"
     val CATEGORY_WATER_BARLEY = "water-barley"
+    val CATEGORY_CHUHAI = "chuhai-alcohol"
+    val CATEGORY_PRIVATE_BRANDS = "konbini-private-brands"
 
-    fun create(now: Instant): Collection = Collection(
-        id = COLLECTION_ID,
-        name = "Japan Konbini Drinks 2026",
-        description = "Taste every iconic convenience-store drink in Japan, one can at a time.",
-        categories = listOf(
-            CollectionCategory(CATEGORY_CANNED_COFFEE, "Canned Coffee", bonusPoints = 25),
-            CollectionCategory(CATEGORY_GREEN_TEA, "Green Tea", bonusPoints = 25),
-            CollectionCategory(CATEGORY_SPORTS, "Sports Drinks", bonusPoints = 25),
-            CollectionCategory(CATEGORY_MILK_TEA, "Milk Tea", bonusPoints = 25),
-            CollectionCategory(CATEGORY_FRUIT_SODA, "Fruit & Soda", bonusPoints = 25),
-            CollectionCategory(CATEGORY_WATER_BARLEY, "Water & Barley Tea", bonusPoints = 25),
-        ),
-        items = listOf(
-            item("boss-rainbow", "BOSS Rainbow Mountain", CATEGORY_CANNED_COFFEE, "Suntory"),
-            item("boss-black", "BOSS Black", CATEGORY_CANNED_COFFEE, "Suntory"),
-            item("georgia-emerald", "Georgia Emerald Mountain Blend", CATEGORY_CANNED_COFFEE, "Coca-Cola"),
-            item("wonda-kinn", "Wonda Kinn no Coffee", CATEGORY_CANNED_COFFEE, "Asahi"),
-            item("dydo-blend", "Dydo Blend Coffee", CATEGORY_CANNED_COFFEE, "Dydo"),
-            item("tully-coffee", "Tully's Barista's Black", CATEGORY_CANNED_COFFEE, "Tully's"),
-            item("ito-en-oi", "Ito En Oi Ocha", CATEGORY_GREEN_TEA, "Ito En"),
-            item("ito-en-kokucha", "Ito En Kokucha", CATEGORY_GREEN_TEA, "Ito En"),
-            item("ayatuki-fine", "Ayataka", CATEGORY_GREEN_TEA, "Coca-Cola"),
-            item("namacha", "Kirin Namacha", CATEGORY_GREEN_TEA, "Kirin"),
-            item("pocari-sweat", "Pocari Sweat", CATEGORY_SPORTS, "Otsuka"),
-            item("aquarius", "Aquarius", CATEGORY_SPORTS, "Coca-Cola"),
-            item("da-da", "DADA", CATEGORY_SPORTS, "Suntory"),
-            item("gatorade", "Gatorade", CATEGORY_SPORTS, "Suntory"),
-            item("kirin-milk-tea", "Kirin Gogo no Kocha", CATEGORY_MILK_TEA, "Kirin"),
-            item("afternoon-tea", "Afternoon Tea Milk Tea", CATEGORY_MILK_TEA, "Suntory"),
-            item("royal-milk-tea", "Royal Milk Tea", CATEGORY_MILK_TEA, "Pokka Sapporo"),
-            item("calpis-water", "Calpis Water", CATEGORY_FRUIT_SODA, "Asahi"),
-            item("cc-lemon", "C.C. Lemon", CATEGORY_FRUIT_SODA, "Suntory"),
-            item("fanta-grape", "Fanta Grape", CATEGORY_FRUIT_SODA, "Coca-Cola"),
-            item("melonsoda", "Suntory Melon Soda", CATEGORY_FRUIT_SODA, "Suntory"),
-            item("tennensui", "Suntory Tennensui", CATEGORY_WATER_BARLEY, "Suntory"),
-            item("rooibos-barley", "Kirin Rooibos Barley Tea", CATEGORY_WATER_BARLEY, "Kirin"),
-            item("ikenaga-barley", "Ikenaga Barley Tea", CATEGORY_WATER_BARLEY, "Ikenaga"),
-        ),
-        createdAt = now,
-        metaAchievementName = "Konbini Grand Slam",
-        metaAchievementDescription = "Drain every category of the Japan Konbini Drinks 2026 board.",
-    )
+    private val json = Json { ignoreUnknownKeys = true }
 
-    private fun item(
-        id: String,
-        label: String,
-        categoryId: String,
-        brand: String,
-        points: Int = 10,
-    ) = ChecklistItem(
-        id = id,
-        label = label,
-        categoryId = categoryId,
-        brand = brand,
-        matchTags = listOf(id),
-        points = points,
-    )
+    fun loadFromJson(jsonString: String, now: Instant): Collection {
+        val config = json.decodeFromString<CollectionConfig>(jsonString)
+        return config.toCollection(now)
+    }
+
+    fun create(now: Instant, configJson: String? = null): Collection =
+        if (configJson != null) {
+            loadFromJson(configJson, now)
+        } else {
+            loadFromJson(DEFAULT_CONFIG_JSON, now)
+        }
+
+    val DEFAULT_CONFIG_JSON = """
+    {
+      "id": "japan-konbini-drinks-2026",
+      "name": "Japan Konbini Drinks 2026",
+      "description": "Taste every iconic convenience-store drink in Japan, one can or bottle at a time.",
+      "metaAchievementName": "Konbini Grand Slam",
+      "metaAchievementDescription": "Drain every category of the Japan Konbini Drinks 2026 board.",
+      "categories": [
+        { "id": "canned-coffee", "name": "Canned Coffee (缶コーヒー)", "bonusPoints": 25 },
+        { "id": "green-tea", "name": "Green & Roasted Tea (お茶)", "bonusPoints": 25 },
+        { "id": "hot-cabinet", "name": "Hot Cabinet (あたたかい)", "bonusPoints": 30 },
+        { "id": "milk-tea", "name": "Milk Tea & Sweets (ミルクティー・乳性)", "bonusPoints": 25 },
+        { "id": "sports-energy", "name": "Sports & Energy (スポーツ・エナジー)", "bonusPoints": 25 },
+        { "id": "fruit-soda", "name": "Fruit & Soda (フルーツ・炭酸)", "bonusPoints": 25 },
+        { "id": "water-barley", "name": "Water & Barley Tea (水・麦茶)", "bonusPoints": 20 },
+        { "id": "chuhai-alcohol", "name": "Chūhai & Highball (チューハイ・酒)", "bonusPoints": 30 },
+        { "id": "konbini-private-brands", "name": "Konbini Exclusives (PB商品)", "bonusPoints": 30 }
+      ],
+      "items": [
+        {
+          "id": "boss-rainbow",
+          "label": "BOSS Rainbow Mountain",
+          "japaneseLabel": "BOSS レインボーマウンテン",
+          "categoryId": "canned-coffee",
+          "brand": "Suntory",
+          "matchTags": ["boss rainbow", "レインボーマウンテン"],
+          "points": 10
+        },
+        {
+          "id": "boss-black",
+          "label": "BOSS Black",
+          "japaneseLabel": "BOSS 無糖ブラック",
+          "categoryId": "canned-coffee",
+          "brand": "Suntory",
+          "matchTags": ["boss black", "無糖ブラック"],
+          "points": 10
+        },
+        {
+          "id": "georgia-emerald",
+          "label": "Georgia Emerald Mountain Blend",
+          "japaneseLabel": "ジョージア エメラルドマウンテン",
+          "categoryId": "canned-coffee",
+          "brand": "Coca-Cola",
+          "matchTags": ["georgia emerald", "エメラルドマウンテン"],
+          "points": 10
+        },
+        {
+          "id": "wonda-morning",
+          "label": "Wonda Morning Shot",
+          "japaneseLabel": "ワンダ モーニングショット",
+          "categoryId": "canned-coffee",
+          "brand": "Asahi",
+          "matchTags": ["morning shot", "モーニングショット"],
+          "points": 10
+        },
+        {
+          "id": "wonda-kinn",
+          "label": "Wonda Kinn no Coffee",
+          "japaneseLabel": "ワンダ 金の微糖",
+          "categoryId": "canned-coffee",
+          "brand": "Asahi",
+          "matchTags": ["kinn no coffee", "金の微糖"],
+          "points": 10
+        },
+        {
+          "id": "dydo-blend",
+          "label": "Dydo Blend Coffee",
+          "japaneseLabel": "ダイドーブレンド デミタス",
+          "categoryId": "canned-coffee",
+          "brand": "Dydo",
+          "matchTags": ["dydo blend", "ダイドーブレンド"],
+          "points": 10
+        },
+        {
+          "id": "tully-coffee",
+          "label": "Tully's Barista's Black",
+          "japaneseLabel": "タリーズ バリスタズブラック",
+          "categoryId": "canned-coffee",
+          "brand": "Tully's",
+          "matchTags": ["tully's black", "バリスタズブラック"],
+          "points": 10
+        },
+        {
+          "id": "craft-boss-latte",
+          "label": "Craft Boss Latte",
+          "japaneseLabel": "クラフトボス ラテ",
+          "categoryId": "canned-coffee",
+          "brand": "Suntory",
+          "matchTags": ["craft boss", "クラフトボス"],
+          "points": 10
+        },
+        {
+          "id": "ito-en-oi",
+          "label": "Ito En Oi Ocha",
+          "japaneseLabel": "お〜いお茶 緑茶",
+          "categoryId": "green-tea",
+          "brand": "Ito En",
+          "matchTags": ["oi ocha", "お〜いお茶", "おーいお茶"],
+          "points": 10
+        },
+        {
+          "id": "ito-en-koicha",
+          "label": "Ito En Oi Ocha Koicha",
+          "japaneseLabel": "お〜いお茶 濃い茶",
+          "categoryId": "green-tea",
+          "brand": "Ito En",
+          "matchTags": ["koicha", "濃い茶"],
+          "points": 10
+        },
+        {
+          "id": "ayataka",
+          "label": "Ayataka",
+          "japaneseLabel": "綾鷹",
+          "categoryId": "green-tea",
+          "brand": "Coca-Cola",
+          "matchTags": ["ayataka", "綾鷹"],
+          "points": 10
+        },
+        {
+          "id": "namacha",
+          "label": "Kirin Namacha",
+          "japaneseLabel": "キリン 生茶",
+          "categoryId": "green-tea",
+          "brand": "Kirin",
+          "matchTags": ["namacha", "生茶"],
+          "points": 10
+        },
+        {
+          "id": "iyemon",
+          "label": "Suntory Iyemon",
+          "japaneseLabel": "サントリー 伊右衛門",
+          "categoryId": "green-tea",
+          "brand": "Suntory",
+          "matchTags": ["iyemon", "伊右衛門"],
+          "points": 10
+        },
+        {
+          "id": "ito-en-hojicha",
+          "label": "Ito En Oi Ocha Hojicha",
+          "japaneseLabel": "お〜いお茶 ほうじ茶",
+          "categoryId": "green-tea",
+          "brand": "Ito En",
+          "matchTags": ["hojicha", "ほうじ茶"],
+          "points": 10
+        },
+        {
+          "id": "sokenbicha",
+          "label": "Sokenbicha",
+          "japaneseLabel": "爽健美茶",
+          "categoryId": "green-tea",
+          "brand": "Coca-Cola",
+          "matchTags": ["sokenbicha", "爽健美茶"],
+          "points": 10
+        },
+        {
+          "id": "hot-boss-luxurious",
+          "label": "Hot BOSS Luxurious Bito",
+          "japaneseLabel": "【あたたかい】BOSS 贅沢微糖",
+          "categoryId": "hot-cabinet",
+          "brand": "Suntory",
+          "matchTags": ["hot boss", "贅沢微糖"],
+          "points": 15
+        },
+        {
+          "id": "hot-gogo-milk-tea",
+          "label": "Hot Gogo no Kocha Milk Tea",
+          "japaneseLabel": "【あたたかい】午後の紅茶 ミルクティー",
+          "categoryId": "hot-cabinet",
+          "brand": "Kirin",
+          "matchTags": ["hot milk tea", "あったかミルクティー"],
+          "points": 15
+        },
+        {
+          "id": "hot-lemon",
+          "label": "Hot Lemon",
+          "japaneseLabel": "【あたたかい】ほっとレモン",
+          "categoryId": "hot-cabinet",
+          "brand": "Asahi",
+          "matchTags": ["hot lemon", "ほっとレモン"],
+          "points": 15
+        },
+        {
+          "id": "hot-ayataka",
+          "label": "Hot Ayataka",
+          "japaneseLabel": "【あたたかい】綾鷹",
+          "categoryId": "hot-cabinet",
+          "brand": "Coca-Cola",
+          "matchTags": ["hot ayataka", "あたたかい綾鷹"],
+          "points": 15
+        },
+        {
+          "id": "kirin-milk-tea",
+          "label": "Kirin Gogo no Kocha Milk Tea",
+          "japaneseLabel": "キリン 午後の紅茶 ミルクティー",
+          "categoryId": "milk-tea",
+          "brand": "Kirin",
+          "matchTags": ["gogo no kocha", "午後の紅茶"],
+          "points": 10
+        },
+        {
+          "id": "royal-milk-tea",
+          "label": "Royal Milk Tea",
+          "japaneseLabel": "紅茶花伝 ロイヤルミルクティー",
+          "categoryId": "milk-tea",
+          "brand": "Coca-Cola",
+          "matchTags": ["kocha kaden", "紅茶花伝"],
+          "points": 10
+        },
+        {
+          "id": "calpis-water",
+          "label": "Calpis Water",
+          "japaneseLabel": "カルピスウォーター",
+          "categoryId": "milk-tea",
+          "brand": "Asahi",
+          "matchTags": ["calpis", "カルピス"],
+          "points": 10
+        },
+        {
+          "id": "calpis-soda",
+          "label": "Calpis Soda",
+          "japaneseLabel": "カルピスソーダ",
+          "categoryId": "milk-tea",
+          "brand": "Asahi",
+          "matchTags": ["calpis soda", "カルピスソーダ"],
+          "points": 10
+        },
+        {
+          "id": "yakult-1000",
+          "label": "Yakult 1000",
+          "japaneseLabel": "ヤクルト 1000",
+          "categoryId": "milk-tea",
+          "brand": "Yakult",
+          "matchTags": ["yakult", "ヤクルト"],
+          "points": 15
+        },
+        {
+          "id": "pocari-sweat",
+          "label": "Pocari Sweat",
+          "japaneseLabel": "ポカリスエット",
+          "categoryId": "sports-energy",
+          "brand": "Otsuka",
+          "matchTags": ["pocari", "ポカリ", "ポカリスエット"],
+          "points": 10
+        },
+        {
+          "id": "aquarius",
+          "label": "Aquarius",
+          "japaneseLabel": "アクエリアス",
+          "categoryId": "sports-energy",
+          "brand": "Coca-Cola",
+          "matchTags": ["aquarius", "アクエリアス"],
+          "points": 10
+        },
+        {
+          "id": "oronamin-c",
+          "label": "Oronamin C",
+          "japaneseLabel": "オロナミンC",
+          "categoryId": "sports-energy",
+          "brand": "Otsuka",
+          "matchTags": ["oronamin", "オロナミンC"],
+          "points": 10
+        },
+        {
+          "id": "dekavita-c",
+          "label": "Dekavita C",
+          "japaneseLabel": "デカビタC",
+          "categoryId": "sports-energy",
+          "brand": "Suntory",
+          "matchTags": ["dekavita", "デカビタC"],
+          "points": 10
+        },
+        {
+          "id": "lipovitan-d",
+          "label": "Lipovitan D",
+          "japaneseLabel": "リポビタンD",
+          "categoryId": "sports-energy",
+          "brand": "Taisho",
+          "matchTags": ["lipovitan", "リポビタンD"],
+          "points": 10
+        },
+        {
+          "id": "cc-lemon",
+          "label": "C.C. Lemon",
+          "japaneseLabel": "C.C.レモン",
+          "categoryId": "fruit-soda",
+          "brand": "Suntory",
+          "matchTags": ["cc lemon", "CCレモン"],
+          "points": 10
+        },
+        {
+          "id": "mitsuya-cider",
+          "label": "Mitsuya Cider",
+          "japaneseLabel": "三ツ矢サイダー",
+          "categoryId": "fruit-soda",
+          "brand": "Asahi",
+          "matchTags": ["mitsuya cider", "三ツ矢サイダー"],
+          "points": 10
+        },
+        {
+          "id": "fanta-grape",
+          "label": "Fanta Grape",
+          "japaneseLabel": "ファンタ グレープ",
+          "categoryId": "fruit-soda",
+          "brand": "Coca-Cola",
+          "matchTags": ["fanta grape", "ファンタグレープ"],
+          "points": 10
+        },
+        {
+          "id": "melonsoda",
+          "label": "Suntory Pop Melon Soda",
+          "japaneseLabel": "サントリー POP メロンソーダ",
+          "categoryId": "fruit-soda",
+          "brand": "Suntory",
+          "matchTags": ["melon soda", "メロンソーダ"],
+          "points": 10
+        },
+        {
+          "id": "suntory-tennensui",
+          "label": "Suntory Tennensui",
+          "japaneseLabel": "サントリー 天然水",
+          "categoryId": "water-barley",
+          "brand": "Suntory",
+          "matchTags": ["tennensui", "天然水"],
+          "points": 10
+        },
+        {
+          "id": "ito-en-mugicha",
+          "label": "Ito En Healthy Mineral Mugicha",
+          "japaneseLabel": "健康ミネラルむぎ茶",
+          "categoryId": "water-barley",
+          "brand": "Ito En",
+          "matchTags": ["mineral mugicha", "健康ミネラルむぎ茶", "むぎ茶"],
+          "points": 10
+        },
+        {
+          "id": "irohasu",
+          "label": "I LOHAS Natural Mineral Water",
+          "japaneseLabel": "い・ろ・は・す",
+          "categoryId": "water-barley",
+          "brand": "Coca-Cola",
+          "matchTags": ["irohasu", "い・ろ・は・す", "いろはす"],
+          "points": 10
+        },
+        {
+          "id": "strong-zero-lemon",
+          "label": "-196°C Strong Zero Double Lemon",
+          "japaneseLabel": "-196℃ ストロングゼロ ダブルレモン",
+          "categoryId": "chuhai-alcohol",
+          "brand": "Suntory",
+          "matchTags": ["strong zero", "ストロングゼロ"],
+          "points": 15
+        },
+        {
+          "id": "horoyoi-white-sour",
+          "label": "Horoyoi White Sour",
+          "japaneseLabel": "ほろよい 白いサワー",
+          "categoryId": "chuhai-alcohol",
+          "brand": "Suntory",
+          "matchTags": ["horoyoi", "ほろよい"],
+          "points": 15
+        },
+        {
+          "id": "kaku-highball",
+          "label": "Suntory Kaku Highball",
+          "japaneseLabel": "サントリー 角ハイボール",
+          "categoryId": "chuhai-alcohol",
+          "brand": "Suntory",
+          "matchTags": ["kaku highball", "角ハイボール"],
+          "points": 15
+        },
+        {
+          "id": "lemondo",
+          "label": "Lemondo Classic Lemon",
+          "japaneseLabel": "檸檬堂 定番レモン",
+          "categoryId": "chuhai-alcohol",
+          "brand": "Coca-Cola",
+          "matchTags": ["lemondo", "檸檬堂"],
+          "points": 15
+        },
+        {
+          "id": "seven-cafe-latte",
+          "label": "7-Premium Cafe Latte",
+          "japaneseLabel": "セブンプレミアム カフェラテ",
+          "categoryId": "konbini-private-brands",
+          "brand": "7-Eleven",
+          "matchTags": ["7-premium", "セブンプレミアム"],
+          "points": 15
+        },
+        {
+          "id": "lawson-uchi-cafe-tea",
+          "label": "Lawson Uchi Café Fruit Tea",
+          "japaneseLabel": "ウチカフェ フルーツティー",
+          "categoryId": "konbini-private-brands",
+          "brand": "Lawson",
+          "matchTags": ["uchi cafe", "ウチカフェ"],
+          "points": 15
+        },
+        {
+          "id": "famimaru-jasmine",
+          "label": "Famimaru Jasmine Tea",
+          "japaneseLabel": "ファミマル 透き通るジャスミン茶",
+          "categoryId": "konbini-private-brands",
+          "brand": "FamilyMart",
+          "matchTags": ["famimaru", "ファミマル"],
+          "points": 15
+        }
+      ]
+    }
+    """.trimIndent()
 }
+

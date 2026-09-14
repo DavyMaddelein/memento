@@ -66,6 +66,19 @@ private val QuickBrands = listOf(
     "FamilyMart",
     "MiniStop",
     "Daily Yamazaki",
+    "NewDays",
+    "Seicomart",
+)
+
+private val QuickPrices = listOf(130L, 150L, 180L, 220L)
+
+private val QuickFlavors = listOf(
+    "Cold 🧊",
+    "Hot 🔥",
+    "Unsweetened (無糖)",
+    "Low Sugar (微糖)",
+    "Sweet",
+    "Fizzy (炭酸)",
 )
 
 /**
@@ -88,12 +101,14 @@ fun RecordMementoScreen(
     onTitleChanged: (String) -> Unit,
     onRatingChanged: (Int) -> Unit,
     onNotesChanged: (String) -> Unit,
+    onFlavorTagToggled: (String) -> Unit = {},
     onTagAdded: (String) -> Unit,
     onTagRemoved: (String) -> Unit,
     onSave: () -> Unit,
     onBack: () -> Unit = {},
     onOccurredAtChanged: (Instant) -> Unit = {},
     onPriceChanged: (String) -> Unit = {},
+    onQuickPriceSelected: (Long) -> Unit = {},
     onCurrencyChanged: (String) -> Unit = {},
     onCollectionToggled: (CollectionId) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -321,6 +336,18 @@ fun RecordMementoScreen(
                     modifier = Modifier.width(120.dp),
                 )
             }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                QuickPrices.forEach { amount ->
+                    TagChip(
+                        label = "¥$amount",
+                        selected = state.priceText == amount.toString() && state.currencyCode == "JPY",
+                        onClick = { onQuickPriceSelected(amount) },
+                    )
+                }
+            }
             FieldErrors(errorsByField["price"])
             FieldErrors(errorsByField["currencyCode"])
 
@@ -333,6 +360,20 @@ fun RecordMementoScreen(
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            SectionLabel("Style & Flavors")
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                QuickFlavors.forEach { flavor ->
+                    TagChip(
+                        label = flavor,
+                        selected = state.flavorTags.any { it.equals(flavor, ignoreCase = true) },
+                        onClick = { onFlavorTagToggled(flavor) },
+                    )
+                }
+            }
 
             SectionLabel("Tags")
             Row(

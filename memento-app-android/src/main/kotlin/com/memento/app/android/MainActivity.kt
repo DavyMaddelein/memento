@@ -321,6 +321,8 @@ private fun MementoApp() {
                     onPriceChanged = recordViewModel::onPriceChanged,
                     onCurrencyChanged = recordViewModel::onCurrencyChanged,
                     onCollectionToggled = recordViewModel::onCollectionToggled,
+                    onFlavorTagToggled = recordViewModel::onFlavorTagToggled,
+                    onQuickPriceSelected = recordViewModel::onQuickPriceSelected,
                 )
 
                 Screen.Collection -> CollectionDetailScreen(
@@ -332,9 +334,13 @@ private fun MementoApp() {
                         recordViewModel.reset()
                         recordViewModel.onTitleChanged(item.label)
                         item.brand?.let(recordViewModel::onBrandChanged)
+                        recordViewModel.onCollectionToggled(KonbiniDrinkChecklist.COLLECTION_ID)
+                        recordViewModel.onTagAdded(item.id)
+                        item.japaneseLabel?.let { recordViewModel.onTagAdded(it) }
                         screen = Screen.Record
                     },
                     onAcknowledgeEarned = collectionViewModel::acknowledgeEarned,
+                    onToggleHideCompleted = collectionViewModel::onToggleHideCompleted,
                 )
 
                 Screen.Places -> PlacesScreen(

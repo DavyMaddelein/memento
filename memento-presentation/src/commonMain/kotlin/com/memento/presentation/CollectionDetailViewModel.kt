@@ -27,6 +27,7 @@ data class CollectionProgressUiState(
     val isLoading: Boolean = true,
     val board: CollectionAchievementBoard? = null,
     val recentlyEarned: List<Achievement> = emptyList(),
+    val hideCompleted: Boolean = false,
 )
 
 /**
@@ -77,6 +78,7 @@ class CollectionDetailViewModel(
                     isLoading = false,
                     board = board,
                     recentlyEarned = recentlyEarned,
+                    hideCompleted = _state.value.hideCompleted,
                 )
             }.collect { _state.value = it }
         }
@@ -84,6 +86,10 @@ class CollectionDetailViewModel(
 
     fun selectCollection(collectionId: CollectionId) {
         selectedCollectionId.value = collectionId
+    }
+
+    fun onToggleHideCompleted() {
+        _state.value = _state.value.copy(hideCompleted = !_state.value.hideCompleted)
     }
 
     /** Clears the queue of achievements earned since the last acknowledgement. */

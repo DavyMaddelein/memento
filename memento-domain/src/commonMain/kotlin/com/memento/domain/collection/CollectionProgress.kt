@@ -45,7 +45,23 @@ fun ChecklistItem.isCoveredBy(memento: Memento): Boolean {
     val itemLabel = label.trim()
     if (memento.title.contains(itemLabel, ignoreCase = true)) return true
     if (memento.tastingNotes?.text?.contains(itemLabel, ignoreCase = true) == true) return true
-    return matchTags.any { tag -> memento.tags.any { it.value.equals(tag, ignoreCase = true) } }
+
+    val jp = japaneseLabel?.trim()
+    if (!jp.isNullOrBlank()) {
+        if (memento.title.contains(jp, ignoreCase = true)) return true
+        if (memento.tastingNotes?.text?.contains(jp, ignoreCase = true) == true) return true
+    }
+
+    val directMatchTags = buildList {
+        add(id)
+        add(itemLabel)
+        if (!jp.isNullOrBlank()) add(jp)
+        addAll(matchTags)
+    }
+
+    return directMatchTags.any { tag ->
+        memento.tags.any { it.value.equals(tag, ignoreCase = true) }
+    }
 }
 
 fun Collection.completedItemIds(mementos: List<Memento>): Set<String> =

@@ -542,4 +542,96 @@ class RecordMementoViewModelTest {
         assertEquals(pickerMillis, localDatePickerMillis(roundTripped, tokyo))
         assertEquals(reference.toLocalDateTime(tokyo).time, roundTripped.toLocalDateTime(tokyo).time)
     }
+
+    @Test
+    fun geocodingResolvesJapaneseStoreNamesToCanonicalBrands() = runTest {
+        val japaneseStores = listOf(
+            "セブン-イレブン 渋谷三丁目店" to "7-Eleven",
+            "ローソン 新宿駅前店" to "Lawson",
+            "ファミリーマート 道玄坂店" to "FamilyMart",
+            "ミニストップ 秋葉原店" to "MiniStop",
+            "デイリーヤマザキ 上野店" to "Daily Yamazaki",
+            "NewDays 新宿南口店" to "NewDays",
+            "セイコーマート すすきの店" to "Seicomart",
+        )
+
+        for ((storeName, expectedBrand) in japaneseStores) {
+            val geocoder = FakeReverseGeocodingService(
+                result = Result.success(ResolvedPlace(name = storeName, city = "Tokyo")),
+            )
+            val viewModel = RecordMementoViewModel(
+                mementoRepository = InMemoryMementoRepository(),
+                locationProvider = FakeLocationProvider(),
+                photoPicker = FakePhotoPickerService(),
+                reverseGeocodingService = geocoder,
+                scope = newViewModelScope(),
+            )
+
+            viewModel.onFetchLocationClicked()
+            advanceUntilIdle()
+
+            val state = viewModel.state.value
+            assertEquals(expectedBrand, state.brand, "Expected $expectedBrand for store: $storeName")
+            viewModel.dispose()
+            advanceUntilIdle()
+        }
+    }
+
+    @Test
+    fun flavorTagsArePersistedAndRoundTripThroughLoadForEdit() = runTest {
+        val repository = InMemoryMementoRepository()
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onAddFromCamera()
+        viewModel.onTitleChanged("BOSS Coffee")
+        viewModel.onNotesChanged("Smooth and rich")
+        viewModel.onFlavorTagToggled("Hot 🔥")
+        viewModel.onFlavorTagToggled("Low Sugar (微糖)")
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hot 🔥", "Low Sugar (微糖)"), viewModel.state.value.flavorTags)
+
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        val persisted = repository.observeAllMementos().first().single()
+        assertNotNull(persisted.tastingNotes)
+        assertEquals("Smooth and rich", persisted.tastingNotes?.text)
+        assertEquals(listOf("Hot 🔥", "Low Sugar (微糖)"), persisted.tastingNotes?.flavorTags)
+
+        val editViewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+        editViewModel.loadForEdit(persisted)
+        assertEquals(listOf("Hot 🔥", "Low Sugar (微糖)"), editViewModel.state.value.flavorTags)
+
+        viewModel.dispose()
+        editViewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun quickPriceSelectionSetsPriceAndCurrency() = runTest {
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = InMemoryMementoRepository(),
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onQuickPriceSelected(150)
+        assertEquals("150", viewModel.state.value.priceText)
+        assertEquals("JPY", viewModel.state.value.currencyCode)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
 }

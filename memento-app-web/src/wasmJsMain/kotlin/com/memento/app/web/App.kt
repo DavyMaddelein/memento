@@ -254,6 +254,8 @@ fun App() {
                         onPriceChanged = graph.recordViewModel::onPriceChanged,
                         onCurrencyChanged = graph.recordViewModel::onCurrencyChanged,
                         onCollectionToggled = graph.recordViewModel::onCollectionToggled,
+                        onFlavorTagToggled = graph.recordViewModel::onFlavorTagToggled,
+                        onQuickPriceSelected = graph.recordViewModel::onQuickPriceSelected,
                     )
 
                     Screen.Collection -> CollectionDetailScreen(
@@ -265,9 +267,12 @@ fun App() {
                             graph.recordViewModel.onTitleChanged(item.label)
                             graph.recordViewModel.onBrandChanged(item.brand.orEmpty())
                             graph.recordViewModel.onCollectionToggled(KonbiniDrinkChecklist.COLLECTION_ID)
+                            graph.recordViewModel.onTagAdded(item.id)
+                            item.japaneseLabel?.let { graph.recordViewModel.onTagAdded(it) }
                             screen = Screen.Record
                         },
                         onAcknowledgeEarned = graph.collectionViewModel::acknowledgeEarned,
+                        onToggleHideCompleted = graph.collectionViewModel::onToggleHideCompleted,
                     )
 
                     Screen.Places -> PlacesScreen(

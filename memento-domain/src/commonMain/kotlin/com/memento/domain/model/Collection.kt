@@ -29,10 +29,14 @@ data class ChecklistItem(
     val brand: String? = null,
     val matchTags: List<String> = emptyList(),
     val points: Int = 10,
+    val japaneseLabel: String? = null,
 ) {
     init {
         require(id.isNotBlank()) { "ChecklistItem id must not be blank" }
         require(label.isNotBlank()) { "ChecklistItem label must not be blank" }
+        require(japaneseLabel == null || japaneseLabel.isNotBlank()) {
+            "ChecklistItem japaneseLabel must not be blank when provided"
+        }
     }
 }
 
