@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
@@ -269,15 +268,6 @@ private fun MementoApp() {
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     label = { Text("Record") },
                 )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = {
-                        backupStatus = BackupStatus.Idle
-                        showBackupDialog = true
-                    },
-                    icon = { Icon(Icons.Filled.Backup, contentDescription = null) },
-                    label = { Text("Backup") },
-                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -303,6 +293,10 @@ private fun MementoApp() {
                         screen = Screen.Record
                         recordViewModel.onAddFromCamera()
                         recordViewModel.onFetchLocationClicked()
+                    },
+                    onOpenBackup = {
+                        backupStatus = BackupStatus.Idle
+                        showBackupDialog = true
                     },
                 )
 
