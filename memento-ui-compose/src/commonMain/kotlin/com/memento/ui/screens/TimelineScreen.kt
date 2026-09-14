@@ -15,8 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,6 +72,7 @@ fun TimelineScreen(
     onAddMemento: () -> Unit,
     onOpenPlaces: (() -> Unit)? = null,
     onQuickCapture: (() -> Unit)? = null,
+    onOpenBackup: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -96,6 +98,14 @@ fun TimelineScreen(
                             Icon(
                                 imageVector = Icons.Filled.Place,
                                 contentDescription = "Places",
+                            )
+                        }
+                    }
+                    if (onOpenBackup != null) {
+                        IconButton(onClick = onOpenBackup) {
+                            Icon(
+                                imageVector = Icons.Filled.Backup,
+                                contentDescription = "Backup",
                             )
                         }
                     }
