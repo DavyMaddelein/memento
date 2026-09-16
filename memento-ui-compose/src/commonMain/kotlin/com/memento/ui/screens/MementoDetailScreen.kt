@@ -43,7 +43,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.memento.domain.model.Memento
-import com.memento.presentation.formatIsoDate
+import com.memento.presentation.formatJournalDate
+import com.memento.presentation.normalizeFlavorTag
 import com.memento.ui.components.LocationBadge
 import com.memento.ui.components.PhotoThumbnail
 import com.memento.ui.components.StarRatingBar
@@ -71,7 +72,7 @@ fun MementoDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Keepsake") },
+                title = { Text(DETAIL_TITLE) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -82,12 +83,12 @@ fun MementoDetailScreen(
                 },
                 actions = {
                     IconButton(onClick = onEdit) {
-                        Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit keepsake")
+                        Icon(imageVector = Icons.Filled.Edit, contentDescription = "Edit memory")
                     }
                     IconButton(onClick = { confirmDelete = true }) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
-                            contentDescription = "Delete keepsake",
+                            contentDescription = "Delete memory",
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -106,7 +107,7 @@ fun MementoDetailScreen(
             PhotoCarousel(images = images)
 
             Text(
-                text = memento.title.ifBlank { "Untitled memento" },
+                text = memento.title.ifBlank { "Untitled memory" },
                 style = MaterialTheme.typography.headlineSmall,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -118,7 +119,7 @@ fun MementoDetailScreen(
             )
 
             Text(
-                text = formatIsoDate(memento.occurredAt),
+                text = formatJournalDate(memento.occurredAt),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.outline,
             )
@@ -137,7 +138,7 @@ fun MementoDetailScreen(
 
             val notes = memento.tastingNotes?.text.orEmpty()
             if (notes.isNotBlank()) {
-                DetailSection("Tasting notes") {
+                DetailSection(MEMORY_FIELD_LABEL) {
                     Text(
                         text = notes,
                         style = MaterialTheme.typography.bodyMedium,
@@ -146,13 +147,10 @@ fun MementoDetailScreen(
                 }
             }
 
-            if (memento.reflection.isNotBlank()) {
-                DetailSection("Reflection") {
-                    Text(
-                        text = memento.reflection,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            val flavorTags = memento.tastingNotes?.flavorTags.orEmpty().map(::normalizeFlavorTag)
+            if (flavorTags.isNotEmpty()) {
+                DetailSection("Flavors") {
+                    TagChipFlow(tags = flavorTags)
                 }
             }
 
@@ -176,8 +174,8 @@ fun MementoDetailScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this keepsake?") },
-            text = { Text("This removes the moment and its photos. You can undo right afterwards.") },
+            title = { Text("Delete this memory?") },
+            text = { Text("This removes the memory and its photos. You can undo right afterwards.") },
             confirmButton = {
                 TextButton(
                     onClick = {

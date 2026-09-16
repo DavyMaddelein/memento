@@ -21,7 +21,6 @@ val T4: Instant = Instant.parse("2024-04-01T00:00:00Z")
 fun memoryMemento(
     id: String = "memento-1",
     title: String = "A keepsake",
-    reflection: String = "",
     coordinates: Coordinates? = null,
     place: Place? = null,
     media: List<MediaReference> = emptyList(),
@@ -34,7 +33,6 @@ fun memoryMemento(
 ): Memento = Memento(
     id = MementoId(id),
     title = title,
-    reflection = reflection,
     coordinates = coordinates,
     place = place,
     media = media,

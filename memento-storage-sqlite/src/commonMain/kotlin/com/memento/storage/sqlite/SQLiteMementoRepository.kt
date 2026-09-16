@@ -66,7 +66,6 @@ class SQLiteMementoRepository(driver: SqlDriver) : MementoRepository {
         queries.upsertMemento(
             id = memento.id.value,
             title = memento.title,
-            reflection = memento.reflection,
             latitude = memento.coordinates?.latitude,
             longitude = memento.coordinates?.longitude,
             accuracy_meters = memento.coordinates?.accuracyMeters,
@@ -176,7 +175,6 @@ class SQLiteMementoRepository(driver: SqlDriver) : MementoRepository {
         return Memento(
             id = MementoId(mementoId),
             title = title,
-            reflection = reflection,
             coordinates = coordinates,
             place = place,
             media = media,

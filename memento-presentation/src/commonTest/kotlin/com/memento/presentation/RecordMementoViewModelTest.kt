@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.memento.domain.collection.KonbiniDrinkChecklist
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
+import com.memento.domain.model.TastingNotes
 import com.memento.platform.contract.ResolvedPlace
 import com.memento.platform.contract.fakes.FakeLocationProvider
 import com.memento.platform.contract.fakes.FakePhotoPickerService
@@ -591,11 +592,11 @@ class RecordMementoViewModelTest {
         viewModel.onAddFromCamera()
         viewModel.onTitleChanged("BOSS Coffee")
         viewModel.onNotesChanged("Smooth and rich")
-        viewModel.onFlavorTagToggled("Hot 🔥")
+        viewModel.onFlavorTagToggled("Hot")
         viewModel.onFlavorTagToggled("Low Sugar (微糖)")
         advanceUntilIdle()
 
-        assertEquals(listOf("Hot 🔥", "Low Sugar (微糖)"), viewModel.state.value.flavorTags)
+        assertEquals(listOf("Hot", "Low Sugar (微糖)"), viewModel.state.value.flavorTags)
 
         viewModel.onSaveClicked()
         advanceUntilIdle()
@@ -603,7 +604,7 @@ class RecordMementoViewModelTest {
         val persisted = repository.observeAllMementos().first().single()
         assertNotNull(persisted.tastingNotes)
         assertEquals("Smooth and rich", persisted.tastingNotes?.text)
-        assertEquals(listOf("Hot 🔥", "Low Sugar (微糖)"), persisted.tastingNotes?.flavorTags)
+        assertEquals(listOf("Hot", "Low Sugar (微糖)"), persisted.tastingNotes?.flavorTags)
 
         val editViewModel = RecordMementoViewModel(
             mementoRepository = repository,
@@ -612,7 +613,7 @@ class RecordMementoViewModelTest {
             scope = newViewModelScope(),
         )
         editViewModel.loadForEdit(persisted)
-        assertEquals(listOf("Hot 🔥", "Low Sugar (微糖)"), editViewModel.state.value.flavorTags)
+        assertEquals(listOf("Hot", "Low Sugar (微糖)"), editViewModel.state.value.flavorTags)
 
         viewModel.dispose()
         editViewModel.dispose()
@@ -620,11 +621,11 @@ class RecordMementoViewModelTest {
     }
 
     @Test
-    fun editingPreservesCreatedAtAndReflection() = runTest {
+    fun editingPreservesCreatedAt() = runTest {
         val repository = InMemoryMementoRepository()
         val createdAt = Instant.parse("2024-01-01T00:00:00Z")
         val existing = testMemento(id = "e1", title = "Old Title", occurredAt = createdAt)
-            .copy(reflection = "A precious handwritten memory", createdAt = createdAt, updatedAt = createdAt)
+            .copy(createdAt = createdAt, updatedAt = createdAt)
         repository.saveMemento(existing).getOrThrow()
 
         val viewModel = RecordMementoViewModel(
@@ -642,7 +643,6 @@ class RecordMementoViewModelTest {
         val saved = repository.observeAllMementos().first().single()
         assertEquals("New Title", saved.title)
         assertEquals(createdAt, saved.createdAt, "createdAt must be immutable across edits")
-        assertEquals("A precious handwritten memory", saved.reflection, "reflection must survive an edit")
 
         viewModel.dispose()
         advanceUntilIdle()
@@ -703,6 +703,32 @@ class RecordMementoViewModelTest {
         assertEquals("BOSS Black", persisted.title)
         assertTrue(persisted.media.isEmpty())
         assertEquals(listOf(KonbiniDrinkChecklist.COLLECTION_ID), persisted.collectionIds)
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun legacyEmojiFlavorTagsAreNormalizedOnLoadAndToggle() = runTest {
+        assertEquals("Cold", normalizeFlavorTag("Cold 🧊"))
+        assertEquals("Hot", normalizeFlavorTag("Hot 🔥"))
+        assertEquals("Sweet", normalizeFlavorTag("Sweet"))
+
+        val legacy = testMemento(id = "e1", title = "Legacy").copy(
+            tastingNotes = TastingNotes(text = "", flavorTags = listOf("Cold 🧊", "Hot 🔥")),
+        )
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = InMemoryMementoRepository(),
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.loadForEdit(legacy)
+        assertEquals(listOf("Cold", "Hot"), viewModel.state.value.flavorTags)
+
+        viewModel.onFlavorTagToggled("Cold")
+        assertEquals(listOf("Hot"), viewModel.state.value.flavorTags)
 
         viewModel.dispose()
         advanceUntilIdle()

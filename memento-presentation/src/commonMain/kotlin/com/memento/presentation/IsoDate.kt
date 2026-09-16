@@ -16,6 +16,15 @@ fun localDate(instant: Instant, timeZone: TimeZone = TimeZone.currentSystemDefau
 fun formatIsoDate(instant: Instant, timeZone: TimeZone = TimeZone.currentSystemDefault()): String =
     localDate(instant, timeZone).toString()
 
+/**
+ * Renders the local calendar date of [instant] in [timeZone] as a Japanese journal date, e.g.
+ * `2026年1月15日`. Used for display only; stored and exported timestamps stay ISO-8601.
+ */
+fun formatJournalDate(instant: Instant, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+    val date = localDate(instant, timeZone)
+    return "${date.year}年${date.monthNumber}月${date.dayOfMonth}日"
+}
+
 /** Parses a `yyyy-MM-dd` date as start of day in [timeZone], or returns `null` when malformed. */
 fun parseIsoDateOrNull(text: String, timeZone: TimeZone = TimeZone.currentSystemDefault()): Instant? {
     val date = try {

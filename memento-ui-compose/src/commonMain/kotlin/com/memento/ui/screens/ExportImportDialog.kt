@@ -100,7 +100,7 @@ fun ExportImportDialog(
                     }
 
                     BackupStatus.Idle, is BackupStatus.ExportReady -> {
-                        Text("Export your mementos to a single .zip archive, or import one.")
+                        Text("Export your memories to a single .zip archive, or import one.")
                     }
                 }
             }

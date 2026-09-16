@@ -1,0 +1,64 @@
+-- Drop the unused `reflection` column. SQLite on Android API 26 predates
+-- `ALTER TABLE ... DROP COLUMN`, so the table is rebuilt instead.
+CREATE TABLE memento_new (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    accuracy_meters REAL,
+    place_name TEXT,
+    place_brand TEXT,
+    place_neighborhood TEXT,
+    place_city TEXT,
+    place_country TEXT,
+    rating INTEGER,
+    tasting_text TEXT,
+    price_minor_units INTEGER,
+    currency_code TEXT,
+    occurred_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+INSERT INTO memento_new (
+    id,
+    title,
+    latitude,
+    longitude,
+    accuracy_meters,
+    place_name,
+    place_brand,
+    place_neighborhood,
+    place_city,
+    place_country,
+    rating,
+    tasting_text,
+    price_minor_units,
+    currency_code,
+    occurred_at,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    title,
+    latitude,
+    longitude,
+    accuracy_meters,
+    place_name,
+    place_brand,
+    place_neighborhood,
+    place_city,
+    place_country,
+    rating,
+    tasting_text,
+    price_minor_units,
+    currency_code,
+    occurred_at,
+    created_at,
+    updated_at
+FROM memento;
+
+DROP TABLE memento;
+
+ALTER TABLE memento_new RENAME TO memento;

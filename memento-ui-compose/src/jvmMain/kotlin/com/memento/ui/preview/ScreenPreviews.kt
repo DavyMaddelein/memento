@@ -227,7 +227,7 @@ private fun RecordMementoScreenErrorsPreview() {
             state = RecordMementoUiState(
                 title = "",
                 errors = listOf(
-                    ValidationViolation("title", "A keepsake needs a title or a named place"),
+                    ValidationViolation("title", "A memory needs a title or a named place"),
                     ValidationViolation("media", "At least one photo is required"),
                 ),
             ),

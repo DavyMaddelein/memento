@@ -28,7 +28,6 @@ fun mediaReference(
 fun memento(
     id: String = "memento-1",
     title: String = "A keepsake",
-    reflection: String = "",
     coordinates: Coordinates? = null,
     place: Place? = null,
     media: List<MediaReference> = listOf(mediaReference()),
@@ -44,7 +43,6 @@ fun memento(
 ): Memento = Memento(
     id = MementoId(id),
     title = title,
-    reflection = reflection,
     coordinates = coordinates,
     place = place,
     media = media,

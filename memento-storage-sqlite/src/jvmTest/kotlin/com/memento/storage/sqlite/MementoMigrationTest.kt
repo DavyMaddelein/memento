@@ -1,5 +1,6 @@
 package com.memento.storage.sqlite
 
+import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.memento.domain.model.CollectionId
 import com.memento.storage.sqlite.db.MementoDatabase
@@ -12,13 +13,14 @@ class MementoMigrationTest {
 
     @Test
     fun schemaVersionIsIncrementedByMigration() {
-        assertEquals(3L, MementoDatabase.Schema.version)
+        assertEquals(4L, MementoDatabase.Schema.version)
     }
 
     @Test
     fun migrateFromV1BackfillsDefaultsAndAllowsNewFields() = runTest {
         val driver = JdbcSqliteDriver(DatabaseDriverFactory.IN_MEMORY)
         createV1CollectionTables(driver)
+        createLegacyMementoTable(driver)
         driver.execute(
             null,
             "INSERT INTO collection(id, name, description, created_at) " +
@@ -68,6 +70,72 @@ class MementoMigrationTest {
 
         val loaded = SQLiteCollectionRepository(driver).getCollection(CollectionId("c1"))
         assertEquals("綾鷹", loaded?.items?.single()?.japaneseLabel)
+    }
+
+    @Test
+    fun migrateToV4DropsReflectionColumnAndPreservesMementos() = runTest {
+        val driver = JdbcSqliteDriver(DatabaseDriverFactory.IN_MEMORY)
+        createLegacyMementoTable(driver)
+        driver.execute(
+            null,
+            "INSERT INTO memento(id, title, reflection, occurred_at, created_at, updated_at) " +
+                "VALUES ('m1', 'Tokyo Konbini', 'legacy reflection', " +
+                "'2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
+            0,
+        )
+
+        MementoDatabase.Schema.migrate(driver, 3L, MementoDatabase.Schema.version)
+
+        // The rebuilt table has no `reflection` column, so an insert that omits it must succeed.
+        driver.execute(
+            null,
+            "INSERT INTO memento(id, title, occurred_at, created_at, updated_at) " +
+                "VALUES ('m2', 'Kyoto', '2024-02-01T00:00:00Z', '2024-02-01T00:00:00Z', '2024-02-01T00:00:00Z')",
+            0,
+        )
+
+        assertEquals("Tokyo Konbini", titleOf(driver, "m1"))
+        assertEquals("Kyoto", titleOf(driver, "m2"))
+    }
+
+    private fun titleOf(driver: JdbcSqliteDriver, id: String): String? =
+        driver.executeQuery(
+            identifier = null,
+            sql = "SELECT title FROM memento WHERE id = ?",
+            mapper = { cursor ->
+                cursor.next()
+                QueryResult.Value(cursor.getString(0))
+            },
+            parameters = 1,
+        ) { bindString(0, id) }.value
+
+    private fun createLegacyMementoTable(driver: JdbcSqliteDriver) {
+        driver.execute(
+            null,
+            """
+            CREATE TABLE memento (
+                id TEXT NOT NULL PRIMARY KEY,
+                title TEXT NOT NULL,
+                reflection TEXT NOT NULL,
+                latitude REAL,
+                longitude REAL,
+                accuracy_meters REAL,
+                place_name TEXT,
+                place_brand TEXT,
+                place_neighborhood TEXT,
+                place_city TEXT,
+                place_country TEXT,
+                rating INTEGER,
+                tasting_text TEXT,
+                price_minor_units INTEGER,
+                currency_code TEXT,
+                occurred_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """.trimIndent(),
+            0,
+        )
     }
 
     private fun createV1CollectionTables(driver: JdbcSqliteDriver) {

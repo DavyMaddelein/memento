@@ -44,7 +44,6 @@ data class MementoBackupV1(
 data class BackupMemento(
     val id: String,
     val title: String = "",
-    val reflection: String = "",
     val coordinates: BackupCoordinates? = null,
     val place: BackupPlace? = null,
     val media: List<BackupMedia> = emptyList(),
@@ -195,7 +194,6 @@ fun BackupCollection.toCollection(): Collection = Collection(
 fun Memento.toBackupMemento(): BackupMemento = BackupMemento(
     id = id.value,
     title = title,
-    reflection = reflection,
     coordinates = coordinates?.let {
         BackupCoordinates(
             latitude = it.latitude,
@@ -237,7 +235,6 @@ fun Memento.toBackupMemento(): BackupMemento = BackupMemento(
 fun BackupMemento.toMemento(): Memento = Memento(
     id = MementoId(id),
     title = title,
-    reflection = reflection,
     coordinates = coordinates?.let {
         Coordinates(
             latitude = it.latitude,

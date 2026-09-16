@@ -18,7 +18,7 @@ object MementoValidator {
             add(
                 ValidationViolation(
                     field = "title",
-                    message = "A keepsake needs a title or a named place",
+                    message = "A memory needs a title or a named place",
                 ),
             )
         }

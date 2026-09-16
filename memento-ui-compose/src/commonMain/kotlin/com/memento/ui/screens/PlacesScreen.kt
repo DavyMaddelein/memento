@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.memento.domain.model.Memento
 import com.memento.domain.places.PlaceGroup
 import com.memento.presentation.PlacesUiState
+import com.memento.ui.components.HankoSeal
 import com.memento.ui.components.MementoCardShell
 import kotlin.math.round
 
@@ -51,7 +52,7 @@ fun PlacesScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Places") },
+                title = { Text(PLACES_TITLE) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -74,15 +75,20 @@ fun PlacesScreen(
             }
 
             state.isEmpty -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(innerPadding),
-                    contentAlignment = Alignment.Center,
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
+                    HankoSeal()
                     Text(
-                        text = "No places yet. Record a keepsake with a location to see it here.",
+                        text = "No places yet. Record a memory with a location to see it here.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.padding(top = 12.dp),
                     )
                 }
             }
@@ -156,7 +162,7 @@ private fun PlaceGroupHeader(group: PlaceGroup, modifier: Modifier = Modifier) {
 }
 
 private fun PlaceGroup.summaryLabel(): String =
-    if (count == 1) "1 keepsake" else "$count keepsakes"
+    if (count == 1) "1 memory" else "$count memories"
 
 private fun formatAverageRating(value: Double): String {
     val scaled = round(value * 10).toInt()
