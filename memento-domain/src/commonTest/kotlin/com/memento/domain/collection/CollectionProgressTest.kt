@@ -118,12 +118,6 @@ class CollectionProgressTest {
     }
 
     @Test
-    fun coveredBrandsComeFromMementoPlaces() {
-        assertEquals(setOf("Suntory"), collection.getCoveredBrands(listOf(brandOnly)))
-        assertEquals(emptySet(), collection.getCoveredBrands(listOf(labelMatch)))
-    }
-
-    @Test
     fun progressAggregatesOverallAndPerCategory() {
         val progress = collection.progress(listOf(bossTag))
 

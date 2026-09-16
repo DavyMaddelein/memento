@@ -61,8 +61,9 @@ data class CollectionAchievementBoard(
  * Inputs are never mutated.
  */
 fun Collection.achievementBoard(mementos: List<Memento>): CollectionAchievementBoard {
+    val coveredByMemento = mementos.associateWith { coveredItemIdsBy(it) }
     val itemAchievements = items.map { item ->
-        val covering = mementos.filter { item.isCoveredBy(it) }
+        val covering = mementos.filter { item.id in coveredByMemento.getValue(it) }
         val covered = covering.isNotEmpty()
         Achievement(
             id = "item:" + item.id,

@@ -1,7 +1,9 @@
 package com.memento.portability
 
+import com.memento.domain.model.Collection
 import com.memento.domain.model.Memento
 import com.memento.storage.contract.AssetStore
+import com.memento.storage.contract.CollectionRepository
 import com.memento.storage.contract.MementoRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
@@ -24,9 +26,12 @@ class ZipExportEngine(private val assetStore: AssetStore) {
     val lastWarnings: List<String> get() = warnings.toList()
 
     /** Serializes [mementos] and their available media into a ZIP archive. */
-    suspend fun export(mementos: List<Memento>): Result<ByteArray> = runCatching {
+    suspend fun export(
+        mementos: List<Memento>,
+        collections: List<Collection> = emptyList(),
+    ): Result<ByteArray> = runCatching {
         warnings.clear()
-        val backup = backupV1(mementos, Clock.System.now())
+        val backup = backupV1(mementos, Clock.System.now(), collections)
         val entries = mutableListOf<Pair<String, ByteArray>>()
 
         entries += MEMENTOS_JSON to MementoBackupJson
@@ -50,11 +55,16 @@ class ZipExportEngine(private val assetStore: AssetStore) {
         ZipWriter.write(entries)
     }
 
-    /** Reads every memento from [mementoRepository] and exports them in one archive. */
-    suspend fun exportAll(mementoRepository: MementoRepository): Result<ByteArray> = runCatching {
-        mementoRepository.observeAllMementos().first()
+    /** Reads every memento (and, when provided, every collection) and exports them in one archive. */
+    suspend fun exportAll(
+        mementoRepository: MementoRepository,
+        collectionRepository: CollectionRepository? = null,
+    ): Result<ByteArray> = runCatching {
+        val mementos = mementoRepository.observeAllMementos().first()
+        val collections = collectionRepository?.observeCollections()?.first().orEmpty()
+        export(mementos, collections)
     }.fold(
-        onSuccess = { export(it) },
+        onSuccess = { it },
         onFailure = { Result.failure(it) },
     )
 

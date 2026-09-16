@@ -36,8 +36,7 @@ class WebAssetStore(
     override suspend fun deleteMedia(id: MediaId): Result<Unit> =
         mediaStorageService.deleteMedia(id)
 
-    /** Not supported by the IndexedDB media store; always empty. */
-    override suspend fun listMedia(): List<MediaId> = emptyList()
+    override suspend fun listMedia(): List<MediaId> = mediaStorageService.listMedia()
 
     private companion object {
         const val FALLBACK_MIME_TYPE = "application/octet-stream"

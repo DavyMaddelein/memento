@@ -4,6 +4,7 @@ import com.memento.domain.model.MediaId
 import com.memento.domain.model.MediaReference
 import com.memento.domain.util.randomId
 import com.memento.platform.contract.MediaStorageService
+import kotlin.js.JsArray
 import kotlinx.datetime.Clock
 
 /**
@@ -47,6 +48,16 @@ class WebMediaStorageService : MediaStorageService {
     suspend fun deleteMedia(id: MediaId): Result<Unit> = runCatching {
         writeStore().delete(id.value).awaitResult()
     }
+
+    /**
+     * Lists every persisted media id by reading the stored records. Never throws: an IndexedDB
+     * failure yields an empty list so a best-effort cleanup pass simply does nothing.
+     */
+    suspend fun listMedia(): List<MediaId> = runCatching {
+        val result = objectStore().getAll().awaitResult()
+        val records = (result as? JsArray<StoredMediaRecord>)?.toList().orEmpty()
+        records.map { MediaId(it.id) }
+    }.getOrDefault(emptyList())
 
     private suspend fun objectStore(): WasmIdbObjectStore =
         MementoIndexedDb.store(MementoIndexedDb.MEDIA_STORE)

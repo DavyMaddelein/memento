@@ -12,7 +12,7 @@ class MementoMigrationTest {
 
     @Test
     fun schemaVersionIsIncrementedByMigration() {
-        assertEquals(2L, MementoDatabase.Schema.version)
+        assertEquals(3L, MementoDatabase.Schema.version)
     }
 
     @Test
@@ -38,7 +38,7 @@ class MementoMigrationTest {
             0,
         )
 
-        MementoDatabase.Schema.migrate(driver, 1, 2)
+        MementoDatabase.Schema.migrate(driver, 1L, MementoDatabase.Schema.version)
 
         val loaded = SQLiteCollectionRepository(driver).getCollection(CollectionId("c1"))
         assertEquals("Legacy", loaded?.name)
@@ -46,6 +46,28 @@ class MementoMigrationTest {
         assertNull(loaded?.metaAchievementDescription)
         assertEquals(25, loaded?.categories?.single()?.bonusPoints)
         assertEquals(10, loaded?.items?.single()?.points)
+        assertNull(loaded?.items?.single()?.japaneseLabel)
+    }
+
+    @Test
+    fun migrateToV3PreservesJapaneseLabelsWhenPresent() = runTest {
+        val driver = JdbcSqliteDriver(DatabaseDriverFactory.IN_MEMORY)
+        MementoDatabase.Schema.create(driver)
+        driver.execute(
+            null,
+            "INSERT INTO collection(id, name, description, created_at) " +
+                "VALUES ('c1', 'Konbini', 'drinks', '2024-01-01T00:00:00Z')",
+            0,
+        )
+        driver.execute(
+            null,
+            "INSERT INTO checklist_item(id, collection_id, label, category_id, brand, japanese_label, position, points) " +
+                "VALUES ('ayataka', 'c1', 'Ayataka', 'cat1', 'Coca-Cola', '綾鷹', 0, 10)",
+            0,
+        )
+
+        val loaded = SQLiteCollectionRepository(driver).getCollection(CollectionId("c1"))
+        assertEquals("綾鷹", loaded?.items?.single()?.japaneseLabel)
     }
 
     private fun createV1CollectionTables(driver: JdbcSqliteDriver) {

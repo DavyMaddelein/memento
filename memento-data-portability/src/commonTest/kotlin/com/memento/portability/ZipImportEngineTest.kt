@@ -1,5 +1,8 @@
 package com.memento.portability
 
+import com.memento.domain.model.ChecklistItem
+import com.memento.domain.model.Collection
+import com.memento.domain.model.CollectionCategory
 import com.memento.domain.model.CollectionId
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.Memento
@@ -9,6 +12,7 @@ import com.memento.domain.model.Rating
 import com.memento.domain.model.Tag
 import com.memento.domain.model.TastingNotes
 import com.memento.storage.memory.InMemoryAssetStore
+import com.memento.storage.memory.InMemoryCollectionRepository
 import com.memento.storage.memory.InMemoryMementoRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -140,8 +144,7 @@ class ZipImportEngineTest {
     }
 
     @Test
-    fun keepBothWithNewIdDoublesRepositoryAndChangesIds() = runTest {
-        val archive = buildArchive()
+    fun keepBothWithNewIdDoublesRepositoryAndChangesIds() = runTest {        val archive = buildArchive()
         val repo = InMemoryMementoRepository()
         val engine = ZipImportEngine(repo, InMemoryAssetStore())
 
@@ -156,6 +159,76 @@ class ZipImportEngineTest {
         val newlyAssigned = allIds.filter { it !in firstIds }
         assertEquals(2, newlyAssigned.size, "conflicting import should assign fresh ids")
         assertNotEquals(emptySet<String>(), firstIds)
+    }
+
+    @Test
+    fun roundTripRestoresCollectionsIncludingJapaneseLabels() = runTest {
+        val sourceStore = InMemoryAssetStore()
+        val sourceMementos = InMemoryMementoRepository()
+        val sourceCollections = InMemoryCollectionRepository()
+        val collection = Collection(
+            id = CollectionId("c-1"),
+            name = "Konbini Drinks",
+            description = "drinks",
+            categories = listOf(CollectionCategory("cat1", "Coffee", 30)),
+            items = listOf(
+                ChecklistItem(
+                    id = "boss-black",
+                    label = "BOSS Black",
+                    categoryId = "cat1",
+                    brand = "Suntory",
+                    matchTags = listOf("boss black"),
+                    points = 12,
+                    japaneseLabel = "BOSS 無糖ブラック",
+                ),
+            ),
+            createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+            metaAchievementName = "Grand Slam",
+            metaAchievementDescription = "Drain every category",
+        )
+        sourceCollections.saveCollection(collection)
+
+        val archive = ZipExportEngine(sourceStore)
+            .exportAll(sourceMementos, sourceCollections)
+            .getOrThrow()
+
+        val targetCollections = InMemoryCollectionRepository()
+        val report = ZipImportEngine(
+            InMemoryMementoRepository(),
+            InMemoryAssetStore(),
+            targetCollections,
+        ).import(archive).getOrThrow()
+
+        assertEquals(1, report.collectionsImported)
+        assertEquals(collection, targetCollections.getCollection(CollectionId("c-1")))
+        assertEquals(
+            "BOSS 無糖ブラック",
+            targetCollections.getCollection(CollectionId("c-1"))?.items?.single()?.japaneseLabel,
+        )
+    }
+
+    @Test
+    fun skipExistingDoesNotOverwriteAnExistingCollection() = runTest {
+        val sourceStore = InMemoryAssetStore()
+        val sourceCollections = InMemoryCollectionRepository()
+        sourceCollections.saveCollection(
+            Collection(id = CollectionId("c-1"), name = "Imported", createdAt = Instant.parse("2024-01-01T00:00:00Z")),
+        )
+        val archive = ZipExportEngine(sourceStore)
+            .exportAll(InMemoryMementoRepository(), sourceCollections)
+            .getOrThrow()
+
+        val targetCollections = InMemoryCollectionRepository()
+        targetCollections.saveCollection(
+            Collection(id = CollectionId("c-1"), name = "Local", createdAt = Instant.parse("2024-01-01T00:00:00Z")),
+        )
+
+        val report = ZipImportEngine(InMemoryMementoRepository(), InMemoryAssetStore(), targetCollections)
+            .import(archive, ConflictPolicy.SkipExisting)
+            .getOrThrow()
+
+        assertEquals(0, report.collectionsImported)
+        assertEquals("Local", targetCollections.getCollection(CollectionId("c-1"))?.name)
     }
 
     private suspend fun buildArchive(): ByteArray {

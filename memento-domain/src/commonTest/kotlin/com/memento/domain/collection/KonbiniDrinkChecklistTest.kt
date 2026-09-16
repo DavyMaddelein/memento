@@ -195,4 +195,47 @@ class KonbiniDrinkChecklistTest {
         assertEquals(setOf("boss-rainbow"), completed)
         assertEquals((1 * 100) / collection.items.size, collection.calculateCompletionPercentage(listOf(match)))
     }
+
+    @Test
+    fun longerLabelShadowsNestedShorterLabel() {
+        // "Ito En Oi Ocha Koicha" literally contains "Ito En Oi Ocha".
+        val koicha = memento(id = "m", title = "Ito En Oi Ocha Koicha")
+
+        assertEquals(setOf("ito-en-koicha"), collection.completedItemIds(listOf(koicha)))
+    }
+
+    @Test
+    fun hotCabinetLabelDoesNotAlsoUnlockColdEquivalent() {
+        // "Hot Ayataka" literally contains "Ayataka".
+        val hot = memento(id = "m", title = "Hot Ayataka")
+
+        assertEquals(setOf("hot-ayataka"), collection.completedItemIds(listOf(hot)))
+    }
+
+    @Test
+    fun shorterLabelStillCoveredOnItsOwn() {
+        assertEquals(setOf("ayataka"), collection.completedItemIds(listOf(memento(id = "a", title = "Ayataka"))))
+        assertEquals(
+            setOf("ito-en-oi"),
+            collection.completedItemIds(listOf(memento(id = "b", title = "Ito En Oi Ocha"))),
+        )
+        assertEquals(
+            setOf("ayataka"),
+            collection.completedItemIds(listOf(memento(id = "c", title = "Cold 綾鷹 from 7-Eleven"))),
+        )
+    }
+
+    @Test
+    fun nestedLabelsInsideSentenceResolveToMostSpecific() {
+        val sentence = memento(id = "m", title = "Picked up an Ito En Oi Ocha Koicha at Lawson")
+
+        assertEquals(setOf("ito-en-koicha"), collection.completedItemIds(listOf(sentence)))
+    }
+
+    @Test
+    fun explicitlyMentioningBothNestedProductsCoversBoth() {
+        val both = memento(id = "m", title = "Ayataka and Hot Ayataka")
+
+        assertEquals(setOf("ayataka", "hot-ayataka"), collection.completedItemIds(listOf(both)))
+    }
 }

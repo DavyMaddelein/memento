@@ -312,7 +312,6 @@ private fun ExportImportDialogPreview() {
                 status = BackupStatus.Imported(imported = 12, skipped = 2, mediaRestored = 8),
                 onExport = {},
                 onImportRequested = {},
-                onImportBytes = {},
                 onDismiss = {},
             )
         }

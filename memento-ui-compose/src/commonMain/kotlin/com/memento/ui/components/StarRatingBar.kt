@@ -47,7 +47,11 @@ fun StarRatingBar(
             val filled = starValue <= rating
             Icon(
                 imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
-                contentDescription = if (interactive) "Set rating to $starValue" else null,
+                contentDescription = if (interactive) {
+                    if (starValue == rating) "Clear rating" else "Set rating to $starValue"
+                } else {
+                    null
+                },
                 tint = if (filled) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -57,7 +61,10 @@ fun StarRatingBar(
                     .size(starSize)
                     .then(
                         if (onRatingChanged != null) {
-                            Modifier.clickable { onRatingChanged(starValue) }
+                            Modifier.clickable {
+                                // Tapping the current rating clears it back to "unrated" (0).
+                                onRatingChanged(if (starValue == rating) 0 else starValue)
+                            }
                         } else {
                             Modifier
                         },

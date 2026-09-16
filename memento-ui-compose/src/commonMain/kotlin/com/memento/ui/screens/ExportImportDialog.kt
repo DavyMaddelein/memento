@@ -23,21 +23,25 @@ sealed interface BackupStatus {
     object Exporting : BackupStatus
     object Importing : BackupStatus
     data class ExportReady(val bytes: ByteArray) : BackupStatus
-    data class Imported(val imported: Int, val skipped: Int, val mediaRestored: Int) : BackupStatus
+    data class Imported(
+        val imported: Int,
+        val skipped: Int,
+        val mediaRestored: Int,
+        val collectionsImported: Int = 0,
+        val errors: List<String> = emptyList(),
+    ) : BackupStatus
     data class Failed(val message: String) : BackupStatus
 }
 
 /**
  * Presentational export/import dialog. File selection is delegated to the app layer through
- * [onImportRequested]; bytes produced by the platform picker are fed back via [onImportBytes].
+ * [onImportRequested].
  */
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ExportImportDialog(
     status: BackupStatus,
     onExport: () -> Unit,
     onImportRequested: () -> Unit,
-    onImportBytes: (ByteArray) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -63,6 +67,29 @@ fun ExportImportDialog(
                         Text("Imported: ${status.imported}")
                         Text("Skipped: ${status.skipped}")
                         Text("Media restored: ${status.mediaRestored}")
+                        if (status.collectionsImported > 0) {
+                            Text("Collections restored: ${status.collectionsImported}")
+                        }
+                        if (status.errors.isNotEmpty()) {
+                            Text(
+                                text = "Problems: ${status.errors.size}",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            status.errors.take(MAX_SHOWN_IMPORT_ERRORS).forEach { error ->
+                                Text(
+                                    text = "• $error",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                            if (status.errors.size > MAX_SHOWN_IMPORT_ERRORS) {
+                                Text(
+                                    text = "…and ${status.errors.size - MAX_SHOWN_IMPORT_ERRORS} more",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
                     }
 
                     is BackupStatus.Failed -> {
@@ -101,3 +128,5 @@ private fun ProgressRow(label: String) {
         Text(label)
     }
 }
+
+private const val MAX_SHOWN_IMPORT_ERRORS = 5

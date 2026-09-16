@@ -1,9 +1,11 @@
 package com.memento.portability
 
+import com.memento.domain.model.CollectionId
 import com.memento.domain.model.MediaReference
 import com.memento.domain.model.MementoId
 import com.memento.domain.util.randomId
 import com.memento.storage.contract.AssetStore
+import com.memento.storage.contract.CollectionRepository
 import com.memento.storage.contract.MementoRepository
 import kotlinx.serialization.SerializationException
 
@@ -24,11 +26,13 @@ data class ImportReport(
     val imported: Int,
     val skipped: Int,
     val mediaRestored: Int,
-    val errors: List<String>,
+    val collectionsImported: Int = 0,
+    val errors: List<String> = emptyList(),
 )
 
 /**
- * Restores archives produced by [ZipExportEngine] into a [MementoRepository] and [AssetStore].
+ * Restores archives produced by [ZipExportEngine] into a [MementoRepository] and [AssetStore],
+ * optionally restoring the collection definitions too.
  *
  * Media is re-persisted through [AssetStore.saveMedia], which is the only way the storage
  * contract exposes writes; the freshly assigned reference id is therefore written back onto the
@@ -37,6 +41,7 @@ data class ImportReport(
 class ZipImportEngine(
     private val mementoRepository: MementoRepository,
     private val assetStore: AssetStore,
+    private val collectionRepository: CollectionRepository? = null,
 ) {
 
     suspend fun import(
@@ -63,6 +68,7 @@ class ZipImportEngine(
         var imported = 0
         var skipped = 0
         var mediaRestored = 0
+        var collectionsImported = 0
         val errors = mutableListOf<String>()
 
         for (incoming in backup.mementos) {
@@ -98,7 +104,30 @@ class ZipImportEngine(
             }
         }
 
-        ImportReport(imported = imported, skipped = skipped, mediaRestored = mediaRestored, errors = errors)
+        // Restore collection definitions (categories, items and Japanese labels) before the
+        // mementos' collection-id references are relied upon by the achievement board.
+        collectionRepository?.let { repository ->
+            for (incoming in backup.collections) {
+                try {
+                    val id = CollectionId(incoming.id)
+                    val exists = repository.getCollection(id) != null
+                    if (exists && conflict != ConflictPolicy.Overwrite) continue
+                    repository.saveCollection(incoming.toCollection())
+                        .onSuccess { collectionsImported++ }
+                        .onFailure { errors += "Failed to save collection ${incoming.id}: ${it.message}" }
+                } catch (error: Exception) {
+                    errors += "Invalid collection ${incoming.id}: ${error.message}"
+                }
+            }
+        }
+
+        ImportReport(
+            imported = imported,
+            skipped = skipped,
+            mediaRestored = mediaRestored,
+            collectionsImported = collectionsImported,
+            errors = errors,
+        )
     }
 
     private suspend fun restoreMedia(
