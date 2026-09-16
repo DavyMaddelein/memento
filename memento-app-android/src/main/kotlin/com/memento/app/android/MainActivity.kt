@@ -193,7 +193,7 @@ private fun MementoApp() {
     LaunchedEffect(recordState.savedMementoId) {
         if (recordState.savedMementoId != null) {
             screen = Screen.Timeline
-            snackbarHostState.showSnackbar("Keepsake saved")
+            snackbarHostState.showSnackbar("Memory kept · 思い出")
         }
     }
 
@@ -375,7 +375,7 @@ private fun MementoApp() {
                             screen = detailBackDestination(current.from)
                             scope.launch {
                                 val result = snackbarHostState.showSnackbar(
-                                    message = "Keepsake deleted",
+                                    message = "Memory removed",
                                     actionLabel = "Undo",
                                 )
                                 if (result == SnackbarResult.ActionPerformed) {

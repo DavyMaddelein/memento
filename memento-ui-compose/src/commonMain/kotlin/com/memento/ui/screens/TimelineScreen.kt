@@ -51,6 +51,7 @@ import com.memento.domain.model.Memento
 import com.memento.domain.model.MementoId
 import com.memento.domain.usecase.MementoSort
 import com.memento.presentation.TimelineUiState
+import com.memento.ui.components.HankoSeal
 import com.memento.ui.components.TagChip
 import kotlinx.coroutines.launch
 
@@ -83,7 +84,7 @@ fun TimelineScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Mementos") },
+                title = { Text(TIMELINE_TITLE) },
                 actions = {
                     if (onQuickCapture != null) {
                         IconButton(onClick = onQuickCapture) {
@@ -127,7 +128,7 @@ fun TimelineScreen(
             OutlinedTextField(
                 value = state.query,
                 onValueChange = onSearchQueryChanged,
-                label = { Text("Search mementos") },
+                label = { Text("Search memories") },
                 leadingIcon = {
                     Icon(imageVector = Icons.Filled.Search, contentDescription = null)
                 },
@@ -169,14 +170,20 @@ fun TimelineScreen(
                 }
 
                 state.isEmpty -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        contentAlignment = Alignment.Center,
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
+                        HankoSeal()
                         Text(
-                            text = "No mementos yet. Tap + to record your first one.",
+                            text = "No memories yet — the first page is waiting.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 12.dp),
                         )
                     }
                 }
@@ -204,10 +211,10 @@ fun TimelineScreen(
     pendingDelete?.let { memento ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete this keepsake?") },
+            title = { Text("Delete this memory?") },
             text = {
                 Text(
-                    "This removes the moment and its photos. You can undo right afterwards.",
+                    "This removes the memory and its photos. You can undo right afterwards.",
                 )
             },
             confirmButton = {
@@ -217,7 +224,7 @@ fun TimelineScreen(
                         onDeleteMemento(memento.id)
                         scope.launch {
                             val result = snackbarHostState.showSnackbar(
-                                message = "Keepsake deleted",
+                                message = "Memory removed",
                                 actionLabel = "Undo",
                             )
                             if (result == SnackbarResult.ActionPerformed) {

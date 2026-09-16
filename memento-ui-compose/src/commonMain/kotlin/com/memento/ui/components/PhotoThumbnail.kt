@@ -2,6 +2,7 @@ package com.memento.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,7 @@ fun PhotoThumbnail(
         modifier = modifier
             .size(size)
             .clip(shape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
         if (image != null) {

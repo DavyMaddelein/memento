@@ -30,7 +30,6 @@ fun fullMemento(
 ): Memento = Memento(
     id = MementoId(id),
     title = "Tokyo Konbini",
-    reflection = "Rainy night in Roppongi",
     coordinates = Coordinates(35.66, 139.73, 8.0),
     place = Place(
         name = "7-Eleven",

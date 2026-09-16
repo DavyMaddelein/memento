@@ -43,6 +43,7 @@ class MarkdownJournalGeneratorTest {
         val markdown = MarkdownJournalGenerator.generate(backup())
 
         assertTrue(markdown.contains("# Memento Journal"), "missing title")
+        assertTrue(markdown.contains("思い出の記録"), "missing journal kanji")
         assertTrue(markdown.contains("_2 moments exported._"), "missing summary")
         assertTrue(markdown.contains("## Ramen at Ichiran"), "missing heading")
         assertTrue(markdown.contains("**Date:** 2024-03-01T00:00:00Z"), "missing date")
@@ -51,7 +52,7 @@ class MarkdownJournalGeneratorTest {
         assertTrue(markdown.contains("**City:** Tokyo"), "missing city")
         assertTrue(markdown.contains("**Rating:** \u2605\u2605\u2605\u2605\u2606"), "missing stars")
         assertTrue(markdown.contains("**Coordinates:** 35, 139"), "missing coordinates")
-        assertTrue(markdown.contains("**Tasting notes:** Rich tonkotsu broth"), "missing tasting notes")
+        assertTrue(markdown.contains("**Memory (思い出):** Rich tonkotsu broth"), "missing memory text")
         assertTrue(markdown.contains("**Flavour tags:** umami, spicy"), "missing flavour tags")
         assertTrue(markdown.contains("**Tags:** #food #tokyo"), "missing tags")
         assertTrue(markdown.contains("![](media/media-1)"), "missing relative image link")

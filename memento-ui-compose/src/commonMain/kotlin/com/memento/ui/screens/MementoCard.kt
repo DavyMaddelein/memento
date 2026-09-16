@@ -25,7 +25,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.memento.domain.model.Memento
-import com.memento.presentation.formatIsoDate
+import com.memento.presentation.formatJournalDate
+import com.memento.presentation.normalizeFlavorTag
 import com.memento.ui.components.LocationBadge
 import com.memento.ui.components.MementoCardShell
 import com.memento.ui.components.PhotoThumbnail
@@ -47,10 +48,11 @@ fun MementoCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val notes = memento.tastingNotes?.text.orEmpty()
+    val flavorTags = memento.tastingNotes?.flavorTags.orEmpty().map(::normalizeFlavorTag)
     val hasNotes = notes.isNotBlank()
-    val hasReflection = memento.reflection.isNotBlank()
+    val hasFlavorTags = flavorTags.isNotEmpty()
     val hasTags = memento.tags.isNotEmpty()
-    val hasDetails = hasNotes || hasReflection || hasTags
+    val hasDetails = hasNotes || hasFlavorTags || hasTags
     val rating = memento.rating
 
     MementoCardShell(
@@ -64,7 +66,7 @@ fun MementoCard(
             ) {
                 PhotoThumbnail(
                     image = images.firstOrNull(),
-                    contentDescription = memento.title.ifBlank { "Memento photo" },
+                    contentDescription = memento.title.ifBlank { "Memory photo" },
                     size = 88.dp,
                 )
                 Column(
@@ -76,7 +78,7 @@ fun MementoCard(
                         verticalAlignment = Alignment.Top,
                     ) {
                         Text(
-                            text = memento.title.ifBlank { "Untitled memento" },
+                            text = memento.title.ifBlank { "Untitled memory" },
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
@@ -101,7 +103,7 @@ fun MementoCard(
                         coordinates = memento.coordinates,
                     )
                     Text(
-                        text = formatIsoDate(memento.occurredAt),
+                        text = formatJournalDate(memento.occurredAt),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.outline,
                     )
@@ -128,12 +130,8 @@ fun MementoCard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        if (hasReflection) {
-                            Text(
-                                text = memento.reflection,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        if (hasFlavorTags) {
+                            TagChipFlow(tags = flavorTags)
                         }
                         if (hasTags) {
                             TagChipFlow(tags = memento.tags.map { it.value })

@@ -55,7 +55,7 @@ import com.memento.domain.model.ChecklistItem
 import com.memento.domain.model.Collection
 import com.memento.domain.model.Memento
 import com.memento.presentation.CollectionProgressUiState
-import com.memento.presentation.formatIsoDate
+import com.memento.presentation.formatJournalDate
 import com.memento.ui.components.TagChip
 import com.memento.ui.theme.AchievementColors
 import com.memento.ui.theme.tierColor
@@ -134,7 +134,7 @@ fun CollectionDetailScreen(
                             color = TextPrimary,
                         )
                         Text(
-                            text = "Record a keepsake to start earning achievements.",
+                            text = "Record a memory to start earning achievements.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextMuted,
                         )
@@ -368,7 +368,7 @@ private fun MetaAchievementCard(
         if (earned) {
             achievement.earnedAt?.let { earnedAt ->
                 Text(
-                    text = "Earned ${formatIsoDate(earnedAt)}",
+                    text = "Earned ${formatJournalDate(earnedAt)}",
                     style = MaterialTheme.typography.labelLarge,
                     color = AchievementColors.EarnedText,
                 )
@@ -569,7 +569,7 @@ private fun AchievementRow(
                 if (earned) {
                     achievement.earnedAt?.let { earnedAt ->
                         Text(
-                            text = "Earned ${formatIsoDate(earnedAt)}",
+                            text = "Earned ${formatJournalDate(earnedAt)}",
                             style = MaterialTheme.typography.labelMedium,
                             color = AchievementColors.EarnedText,
                         )

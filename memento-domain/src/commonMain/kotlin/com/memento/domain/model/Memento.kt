@@ -13,7 +13,6 @@ import kotlinx.serialization.Serializable
 data class Memento(
     val id: MementoId,
     val title: String = "",
-    val reflection: String = "",
     val coordinates: Coordinates? = null,
     val place: Place? = null,
     val media: List<MediaReference> = emptyList(),

@@ -5,7 +5,7 @@ package com.memento.portability
  *
  * The document starts with a title and a summary count, then contains one section per memento
  * ordered newest-first. Each section lists the structured metadata (date, place/brand/city,
- * coordinates, star rating, tasting notes, flavour tags and tags) followed by relative image
+ * coordinates, star rating, memory text, flavour tags and tags) followed by relative image
  * links into the archive's `media/` folder.
  */
 object MarkdownJournalGenerator {
@@ -17,7 +17,7 @@ object MarkdownJournalGenerator {
     fun generate(backup: MementoBackupV1): String {
         val moments = backup.mementos.sortedByDescending { it.occurredAt }
         return buildString {
-            appendLine("# Memento Journal")
+            appendLine("# Memento Journal — 思い出の記録")
             appendLine()
             appendLine("_${moments.size} ${if (moments.size == 1) "moment" else "moments"} exported._")
             appendLine()
@@ -56,7 +56,7 @@ object MarkdownJournalGenerator {
 
         moment.tastingNotes?.let { notes ->
             if (notes.text.isNotBlank()) {
-                appendLine("**Tasting notes:** ${notes.text}")
+                appendLine("**Memory (思い出):** ${notes.text}")
             }
             if (notes.flavorTags.isNotEmpty()) {
                 appendLine("**Flavour tags:** ${notes.flavorTags.joinToString(", ")}")
@@ -69,11 +69,6 @@ object MarkdownJournalGenerator {
 
         if (moment.collections.isNotEmpty()) {
             appendLine("**Collections:** ${moment.collections.joinToString(", ")}")
-        }
-
-        if (moment.reflection.isNotBlank()) {
-            appendLine()
-            appendLine(moment.reflection)
         }
 
         if (moment.media.isNotEmpty()) {

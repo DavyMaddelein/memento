@@ -1,7 +1,6 @@
 CREATE TABLE memento (
     id TEXT NOT NULL PRIMARY KEY,
     title TEXT NOT NULL,
-    reflection TEXT NOT NULL,
     latitude REAL,
     longitude REAL,
     accuracy_meters REAL,
@@ -104,7 +103,6 @@ upsertMemento:
 INSERT OR REPLACE INTO memento(
     id,
     title,
-    reflection,
     latitude,
     longitude,
     accuracy_meters,
@@ -121,7 +119,7 @@ INSERT OR REPLACE INTO memento(
     created_at,
     updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteMemento:
 DELETE FROM memento

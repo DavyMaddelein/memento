@@ -58,8 +58,6 @@ data class RecordMementoUiState(
     val priceText: String = "",
     val currencyCode: String = "JPY",
     val availableCollections: List<Collection> = emptyList(),
-    /** Free-form reflection carried over from an edited memento; not editable in this form. */
-    val reflection: String = "",
     /** Creation timestamp of the memento being edited, or null while creating a new one. */
     val createdAt: Instant? = null,
 )
@@ -224,7 +222,7 @@ class RecordMementoViewModel(
     }
 
     fun onFlavorTagToggled(tag: String) {
-        val trimmed = tag.trim()
+        val trimmed = normalizeFlavorTag(tag)
         if (trimmed.isEmpty()) return
         val current = _state.value.flavorTags
         _state.value = _state.value.copy(
@@ -366,14 +364,13 @@ class RecordMementoViewModel(
             title = memento.title,
             rating = memento.rating?.stars ?: 0,
             notes = memento.tastingNotes?.text.orEmpty(),
-            flavorTags = memento.tastingNotes?.flavorTags.orEmpty(),
+            flavorTags = memento.tastingNotes?.flavorTags.orEmpty().map(::normalizeFlavorTag),
             tags = memento.tags.map { it.value },
             collectionIds = memento.collectionIds,
             occurredAt = memento.occurredAt,
             priceText = memento.priceMinorUnits?.toString() ?: "",
             currencyCode = memento.currencyCode ?: "JPY",
             availableCollections = _state.value.availableCollections,
-            reflection = memento.reflection,
             createdAt = memento.createdAt,
         )
     }
@@ -417,7 +414,6 @@ class RecordMementoViewModel(
         return Memento(
             id = id,
             title = current.title.trim(),
-            reflection = current.reflection,
             coordinates = current.coordinates,
             place = current.placeName.trim().takeIf { it.isNotEmpty() }?.let { name ->
                 Place(

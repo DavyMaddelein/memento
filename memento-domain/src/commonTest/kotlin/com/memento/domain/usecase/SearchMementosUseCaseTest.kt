@@ -14,7 +14,6 @@ class SearchMementosUseCaseTest {
     private val useCase = SearchMementosUseCase()
 
     private val byTitle = memento(id = "title", title = "Rainbow Mountain Latte")
-    private val byReflection = memento(id = "reflection", reflection = "That trip was unforgettable")
     private val byTasting = memento(
         id = "tasting",
         tastingNotes = TastingNotes(text = "Rich caramel finish"),
@@ -23,15 +22,19 @@ class SearchMementosUseCaseTest {
     private val byPlaceBrand = memento(id = "place-brand", place = Place("Corner Shop", brand = "Suntory"))
     private val byPlaceCity = memento(id = "place-city", place = Place("Corner Shop", city = "Kyoto"))
     private val byTag = memento(id = "tag", tags = listOf(Tag("ramen")))
+    private val byFlavorTag = memento(
+        id = "flavor",
+        tastingNotes = TastingNotes(text = "", flavorTags = listOf("Fizzy (炭酸)")),
+    )
 
     private val all = listOf(
         byTitle,
-        byReflection,
         byTasting,
         byPlaceName,
         byPlaceBrand,
         byPlaceCity,
         byTag,
+        byFlavorTag,
     )
 
     private fun ids(mementos: List<com.memento.domain.model.Memento>): List<String> =
@@ -40,11 +43,6 @@ class SearchMementosUseCaseTest {
     @Test
     fun matchesTitle() {
         assertContentEquals(listOf("title"), ids(useCase(all, "Rainbow")))
-    }
-
-    @Test
-    fun matchesReflection() {
-        assertContentEquals(listOf("reflection"), ids(useCase(all, "unforgettable")))
     }
 
     @Test
@@ -70,6 +68,12 @@ class SearchMementosUseCaseTest {
     @Test
     fun matchesTag() {
         assertContentEquals(listOf("tag"), ids(useCase(all, "Ramen")))
+    }
+
+    @Test
+    fun matchesFlavorTag() {
+        assertContentEquals(listOf("flavor"), ids(useCase(all, "fizzy")))
+        assertContentEquals(listOf("flavor"), ids(useCase(all, "炭酸")))
     }
 
     @Test

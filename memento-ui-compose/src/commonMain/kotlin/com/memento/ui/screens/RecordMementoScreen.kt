@@ -50,8 +50,9 @@ import com.memento.domain.model.CollectionId
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
 import com.memento.domain.validation.ValidationViolation
+import com.memento.presentation.QUICK_FLAVORS
 import com.memento.presentation.RecordMementoUiState
-import com.memento.presentation.formatIsoDate
+import com.memento.presentation.formatJournalDate
 import com.memento.presentation.instantForPickedDate
 import com.memento.presentation.localDatePickerMillis
 import com.memento.ui.components.PhotoStrip
@@ -71,15 +72,6 @@ private val QuickBrands = listOf(
 )
 
 private val QuickPrices = listOf(130L, 150L, 180L, 220L)
-
-private val QuickFlavors = listOf(
-    "Cold 🧊",
-    "Hot 🔥",
-    "Unsweetened (無糖)",
-    "Low Sugar (微糖)",
-    "Sweet",
-    "Fizzy (炭酸)",
-)
 
 /**
  * The "record a memento" form: photo capture, location, place metadata, rating, notes and tags.
@@ -120,7 +112,7 @@ fun RecordMementoScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Record a Memento") },
+                title = { Text(RECORD_TITLE) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -140,8 +132,8 @@ fun RecordMementoScreen(
                                 )
                                 Text("Saving…", modifier = Modifier.padding(start = 8.dp))
                             }
-                            state.savedMementoId != null -> Text("Saved")
-                            else -> Text("Save")
+                            state.savedMementoId != null -> Text("Kept")
+                            else -> Text("Keep")
                         }
                     }
                 },
@@ -299,7 +291,7 @@ fun RecordMementoScreen(
             SectionLabel("When")
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
-                    value = formatIsoDate(state.occurredAt),
+                    value = formatJournalDate(state.occurredAt),
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Date") },
@@ -356,7 +348,7 @@ fun RecordMementoScreen(
             OutlinedTextField(
                 value = state.notes,
                 onValueChange = onNotesChanged,
-                label = { Text("Tasting notes") },
+                label = { Text(MEMORY_FIELD_LABEL) },
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -366,7 +358,7 @@ fun RecordMementoScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                QuickFlavors.forEach { flavor ->
+                QUICK_FLAVORS.forEach { flavor ->
                     TagChip(
                         label = flavor,
                         selected = state.flavorTags.any { it.equals(flavor, ignoreCase = true) },

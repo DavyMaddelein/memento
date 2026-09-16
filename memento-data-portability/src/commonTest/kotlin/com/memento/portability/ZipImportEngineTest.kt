@@ -38,7 +38,6 @@ class ZipImportEngineTest {
         val m1 = Memento(
             id = MementoId("m-1"),
             title = "Ramen",
-            reflection = "Warm and cosy",
             coordinates = Coordinates(35.0, 139.0, 5.0),
             place = Place("Ichiran", "Ichiran", "Shinjuku", "Tokyo", "Japan"),
             media = listOf(refA),
@@ -79,7 +78,6 @@ class ZipImportEngineTest {
 
         val restored1 = imported.getValue("m-1")
         assertEquals("Ramen", restored1.title)
-        assertEquals("Warm and cosy", restored1.reflection)
         assertEquals(Coordinates(35.0, 139.0, 5.0), restored1.coordinates)
         assertEquals(Place("Ichiran", "Ichiran", "Shinjuku", "Tokyo", "Japan"), restored1.place)
         assertEquals(Rating(4), restored1.rating)
