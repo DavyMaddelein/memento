@@ -42,12 +42,14 @@ import com.memento.platform.web.downloadBytes
 import com.memento.platform.web.pickZipFile
 import com.memento.platform.web.webReverseGeocodingService
 import com.memento.portability.ConflictPolicy
+import com.memento.portability.MediaGarbageCollector
 import com.memento.portability.ZipExportEngine
 import com.memento.portability.ZipImportEngine
 import com.memento.presentation.CollectionDetailViewModel
 import com.memento.presentation.PlacesViewModel
 import com.memento.presentation.RecordMementoViewModel
 import com.memento.presentation.TimelineViewModel
+import com.memento.presentation.seedKonbiniCollection
 import com.memento.ui.image.decodeImage
 import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
@@ -57,8 +59,8 @@ import com.memento.ui.screens.PlacesScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 
@@ -115,7 +117,8 @@ private class AppGraph(scope: CoroutineScope) {
     )
 
     val exportEngine = ZipExportEngine(assetStore)
-    val importEngine = ZipImportEngine(mementoRepository, assetStore)
+    val importEngine = ZipImportEngine(mementoRepository, assetStore, collectionRepository)
+    val mediaGarbageCollector = MediaGarbageCollector(mementoRepository, assetStore)
 }
 
 /**
@@ -140,10 +143,16 @@ fun App() {
         val placesState by graph.placesViewModel.state.collectAsState()
 
         LaunchedEffect(Unit) {
-            if (graph.collectionRepository.getCollection(KonbiniDrinkChecklist.COLLECTION_ID) == null) {
-                graph.collectionRepository.saveCollection(KonbiniDrinkChecklist.create(Clock.System.now()))
-            }
+            // Seed/repair the flagship checklist; garbage collection is best-effort.
+            seedKonbiniCollection(graph.collectionRepository, Clock.System.now())
             graph.collectionViewModel.selectCollection(KonbiniDrinkChecklist.COLLECTION_ID)
+            try {
+                graph.mediaGarbageCollector.collect()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // Orphan cleanup is best-effort; ignore and continue.
+            }
         }
 
         LaunchedEffect(recordState.savedMementoId) {
@@ -287,6 +296,7 @@ fun App() {
                         MementoDetailScreen(
                             memento = memento,
                             images = memento.media.map { imageCache[it.id.value] },
+                            collectionNames = recordState.availableCollections.associate { it.id.value to it.name },
                             onBack = { screen = detailBackDestination(current.from) },
                             onEdit = {
                                 graph.recordViewModel.loadForEdit(memento)
@@ -321,18 +331,19 @@ fun App() {
                 onExport = {
                     scope.launch {
                         backupStatus = BackupStatus.Exporting
-                        val mementos = graph.mementoRepository.observeAllMementos().first()
-                        graph.exportEngine.export(mementos).fold(
-                            onSuccess = { bytes ->
-                                runCatching {
-                                    downloadBytes(bytes, "memento-backup.zip", "application/zip")
-                                }
-                                backupStatus = BackupStatus.ExportReady(bytes)
-                            },
-                            onFailure = { error ->
-                                backupStatus = BackupStatus.Failed(error.message ?: "Export failed")
-                            },
-                        )
+                        graph.exportEngine
+                            .exportAll(graph.mementoRepository, graph.collectionRepository)
+                            .fold(
+                                onSuccess = { bytes ->
+                                    runCatching {
+                                        downloadBytes(bytes, "memento-backup.zip", "application/zip")
+                                    }
+                                    backupStatus = BackupStatus.ExportReady(bytes)
+                                },
+                                onFailure = { error ->
+                                    backupStatus = BackupStatus.Failed(error.message ?: "Export failed")
+                                },
+                            )
                     }
                 },
                 onImportRequested = {
@@ -353,6 +364,8 @@ fun App() {
                                         imported = report.imported,
                                         skipped = report.skipped,
                                         mediaRestored = report.mediaRestored,
+                                        collectionsImported = report.collectionsImported,
+                                        errors = report.errors,
                                     )
                                 },
                                 onFailure = { error ->
@@ -360,23 +373,6 @@ fun App() {
                                 },
                             )
                         }
-                    }
-                },
-                onImportBytes = { bytes ->
-                    scope.launch {
-                        backupStatus = BackupStatus.Importing
-                        graph.importEngine.import(bytes, ConflictPolicy.SkipExisting).fold(
-                            onSuccess = { report ->
-                                backupStatus = BackupStatus.Imported(
-                                    imported = report.imported,
-                                    skipped = report.skipped,
-                                    mediaRestored = report.mediaRestored,
-                                )
-                            },
-                            onFailure = { error ->
-                                backupStatus = BackupStatus.Failed(error.message ?: "Import failed")
-                            },
-                        )
                     }
                 },
                 onDismiss = {

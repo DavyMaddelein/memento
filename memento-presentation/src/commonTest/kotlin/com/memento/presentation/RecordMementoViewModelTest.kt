@@ -3,6 +3,7 @@
 package com.memento.presentation
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.memento.domain.collection.KonbiniDrinkChecklist
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
 import com.memento.platform.contract.ResolvedPlace
@@ -615,6 +616,95 @@ class RecordMementoViewModelTest {
 
         viewModel.dispose()
         editViewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun editingPreservesCreatedAtAndReflection() = runTest {
+        val repository = InMemoryMementoRepository()
+        val createdAt = Instant.parse("2024-01-01T00:00:00Z")
+        val existing = testMemento(id = "e1", title = "Old Title", occurredAt = createdAt)
+            .copy(reflection = "A precious handwritten memory", createdAt = createdAt, updatedAt = createdAt)
+        repository.saveMemento(existing).getOrThrow()
+
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.loadForEdit(existing)
+        viewModel.onTitleChanged("New Title")
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        val saved = repository.observeAllMementos().first().single()
+        assertEquals("New Title", saved.title)
+        assertEquals(createdAt, saved.createdAt, "createdAt must be immutable across edits")
+        assertEquals("A precious handwritten memory", saved.reflection, "reflection must survive an edit")
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun removingPhotoWhileEditingKeepsBytesUntilTheEditIsSaved() = runTest {
+        val repository = InMemoryMementoRepository()
+        val assetStore = InMemoryAssetStore()
+        val keep = assetStore.saveMedia(byteArrayOf(1, 2, 3), "image/jpeg", "keep.jpg").getOrThrow()
+        val remove = assetStore.saveMedia(byteArrayOf(4, 5, 6), "image/jpeg", "remove.jpg").getOrThrow()
+        val existing = testMemento(id = "e1", title = "Old", media = listOf(keep, remove))
+        repository.saveMemento(existing).getOrThrow()
+
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            assetStore = assetStore,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.loadForEdit(existing)
+        viewModel.onRemovePhoto(remove.id)
+        advanceUntilIdle()
+
+        // Deletion is deferred while the edit is uncommitted, so cancelling would not lose the photo.
+        assertTrue(assetStore.readMedia(remove.id).isSuccess)
+
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        assertEquals(listOf(keep.id), repository.observeAllMementos().first().single().media.map { it.id })
+        assertTrue(assetStore.readMedia(remove.id).isFailure, "committed removal must reclaim the bytes")
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun collectionEntryCanBeSavedWithoutAPhotoForBackfill() = runTest {
+        val repository = InMemoryMementoRepository()
+        val viewModel = RecordMementoViewModel(
+            mementoRepository = repository,
+            locationProvider = FakeLocationProvider(),
+            photoPicker = FakePhotoPickerService(),
+            scope = newViewModelScope(),
+        )
+
+        viewModel.onTitleChanged("BOSS Black")
+        viewModel.onCollectionToggled(KonbiniDrinkChecklist.COLLECTION_ID)
+        viewModel.onSaveClicked()
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.state.value.savedMementoId)
+        assertTrue(viewModel.state.value.errors.isEmpty())
+        val persisted = repository.observeAllMementos().first().single()
+        assertEquals("BOSS Black", persisted.title)
+        assertTrue(persisted.media.isEmpty())
+        assertEquals(listOf(KonbiniDrinkChecklist.COLLECTION_ID), persisted.collectionIds)
+
+        viewModel.dispose()
         advanceUntilIdle()
     }
 

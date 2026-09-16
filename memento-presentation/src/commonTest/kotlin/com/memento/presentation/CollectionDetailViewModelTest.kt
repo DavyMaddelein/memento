@@ -185,4 +185,43 @@ class CollectionDetailViewModelTest {
         viewModel.dispose()
         advanceUntilIdle()
     }
+
+    @Test
+    fun recentlyEarnedSurvivesLaterEmissionsAndAccumulates() = runTest {
+        val collection = KonbiniDrinkChecklist.create(Instant.fromEpochMilliseconds(0))
+        val collectionRepository = InMemoryCollectionRepository()
+        collectionRepository.saveCollection(collection)
+        val mementoRepository = InMemoryMementoRepository()
+        val viewModel = CollectionDetailViewModel(
+            collectionRepository = collectionRepository,
+            mementoRepository = mementoRepository,
+            scope = newViewModelScope(),
+        )
+
+        viewModel.selectCollection(collection.id)
+        advanceUntilIdle()
+
+        mementoRepository.saveMemento(testMemento(id = "boss-rainbow", tags = listOf("boss-rainbow")))
+        advanceUntilIdle()
+        assertEquals(listOf("item:boss-rainbow"), viewModel.state.value.recentlyEarned.map { it.id })
+
+        // An unrelated repository change must not swallow the pending celebration.
+        mementoRepository.saveMemento(testMemento(id = "unrelated", title = "Something else"))
+        advanceUntilIdle()
+        assertEquals(listOf("item:boss-rainbow"), viewModel.state.value.recentlyEarned.map { it.id })
+
+        // A second unlock accumulates onto the still-unacknowledged first.
+        mementoRepository.saveMemento(testMemento(id = "ayataka", tags = listOf("ayataka")))
+        advanceUntilIdle()
+        assertEquals(
+            setOf("item:boss-rainbow", "item:ayataka"),
+            viewModel.state.value.recentlyEarned.map { it.id }.toSet(),
+        )
+
+        viewModel.acknowledgeEarned()
+        assertTrue(viewModel.state.value.recentlyEarned.isEmpty())
+
+        viewModel.dispose()
+        advanceUntilIdle()
+    }
 }

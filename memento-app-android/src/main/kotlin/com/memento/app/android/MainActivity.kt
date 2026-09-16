@@ -40,12 +40,14 @@ import com.memento.domain.model.Memento
 import com.memento.platform.android.AndroidPhotoPickerService
 import com.memento.platform.android.androidReverseGeocodingService
 import com.memento.portability.ConflictPolicy
+import com.memento.portability.MediaGarbageCollector
 import com.memento.portability.ZipExportEngine
 import com.memento.portability.ZipImportEngine
 import com.memento.presentation.CollectionDetailViewModel
 import com.memento.presentation.PlacesViewModel
 import com.memento.presentation.RecordMementoViewModel
 import com.memento.presentation.TimelineViewModel
+import com.memento.presentation.seedKonbiniCollection
 import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
 import com.memento.ui.screens.ExportImportDialog
@@ -54,6 +56,7 @@ import com.memento.ui.screens.PlacesScreen
 import com.memento.ui.screens.RecordMementoScreen
 import com.memento.ui.screens.TimelineScreen
 import com.memento.ui.theme.MementoTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -138,13 +141,17 @@ private fun MementoApp() {
         }
     }
 
-    // Seed the flagship checklist once, then select it so the collection screen has content.
+    // Seed/repair the flagship checklist, then select it so the collection screen has content.
+    // Garbage collection is best-effort: a failure must never abort startup.
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            if (graph.collectionRepository.getCollection(KonbiniDrinkChecklist.COLLECTION_ID) == null) {
-                graph.collectionRepository.saveCollection(
-                    KonbiniDrinkChecklist.create(Clock.System.now()),
-                )
+            seedKonbiniCollection(graph.collectionRepository, Clock.System.now())
+            try {
+                MediaGarbageCollector(graph.mementoRepository, graph.assetStore).collect()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // Orphan cleanup is best-effort; ignore and continue.
             }
         }
         collectionViewModel.selectCollection(KonbiniDrinkChecklist.COLLECTION_ID)
@@ -224,7 +231,7 @@ private fun MementoApp() {
                     return@launch
                 }
                 val result = withContext(Dispatchers.IO) {
-                    ZipImportEngine(graph.mementoRepository, graph.assetStore)
+                    ZipImportEngine(graph.mementoRepository, graph.assetStore, graph.collectionRepository)
                         .import(bytes, ConflictPolicy.SkipExisting)
                 }
                 backupStatus = result.fold(
@@ -233,6 +240,8 @@ private fun MementoApp() {
                             imported = report.imported,
                             skipped = report.skipped,
                             mediaRestored = report.mediaRestored,
+                            collectionsImported = report.collectionsImported,
+                            errors = report.errors,
                         )
                     },
                     onFailure = { error ->
@@ -355,6 +364,7 @@ private fun MementoApp() {
                     MementoDetailScreen(
                         memento = memento,
                         images = timelineImages[memento.id.value].orEmpty(),
+                        collectionNames = recordState.availableCollections.associate { it.id.value to it.name },
                         onBack = { screen = detailBackDestination(current.from) },
                         onEdit = {
                             recordViewModel.loadForEdit(memento)
@@ -386,7 +396,8 @@ private fun MementoApp() {
                 backupStatus = BackupStatus.Exporting
                 scope.launch {
                     val result = withContext(Dispatchers.IO) {
-                        ZipExportEngine(graph.assetStore).exportAll(graph.mementoRepository)
+                        ZipExportEngine(graph.assetStore)
+                            .exportAll(graph.mementoRepository, graph.collectionRepository)
                     }
                     result.fold(
                         onSuccess = { bytes ->
@@ -400,7 +411,6 @@ private fun MementoApp() {
                 }
             },
             onImportRequested = { importLauncher.launch(arrayOf("application/zip")) },
-            onImportBytes = {},
             onDismiss = {
                 showBackupDialog = false
                 backupStatus = BackupStatus.Idle

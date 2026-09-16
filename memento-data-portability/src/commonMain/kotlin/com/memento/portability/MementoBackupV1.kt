@@ -1,5 +1,8 @@
 package com.memento.portability
 
+import com.memento.domain.model.ChecklistItem
+import com.memento.domain.model.Collection
+import com.memento.domain.model.CollectionCategory
 import com.memento.domain.model.CollectionId
 import com.memento.domain.model.Coordinates
 import com.memento.domain.model.MediaId
@@ -20,13 +23,17 @@ import kotlinx.serialization.json.Json
  * `mementos.json` inside an export archive and is the single source of truth for structural
  * round-tripping (markdown is a derived, human-facing view).
  *
- * Only [schemaVersion] `1` is currently defined; importers must reject anything greater.
+ * Only [schemaVersion] `1` is currently defined; importers must reject anything greater. New
+ * top-level fields may be added within version 1 as long as they are optional with a default: the
+ * shared [MementoBackupJson] sets `ignoreUnknownKeys`, so older importers silently skip fields they
+ * do not know (e.g. `collections` from a newer export).
  */
 @Serializable
 data class MementoBackupV1(
     @SerialName("schema_version") val schemaVersion: Int = SCHEMA_VERSION,
     @SerialName("exported_at") val exportedAt: String,
     val mementos: List<BackupMemento> = emptyList(),
+    val collections: List<BackupCollection> = emptyList(),
 ) {
     companion object {
         const val SCHEMA_VERSION: Int = 1
@@ -85,6 +92,36 @@ data class BackupTastingNotes(
     val flavorTags: List<String> = emptyList(),
 )
 
+@Serializable
+data class BackupCollection(
+    val id: String,
+    val name: String,
+    val description: String = "",
+    val categories: List<BackupCollectionCategory> = emptyList(),
+    val items: List<BackupChecklistItem> = emptyList(),
+    val createdAt: String,
+    val metaAchievementName: String? = null,
+    val metaAchievementDescription: String? = null,
+)
+
+@Serializable
+data class BackupCollectionCategory(
+    val id: String,
+    val name: String,
+    val bonusPoints: Int = 25,
+)
+
+@Serializable
+data class BackupChecklistItem(
+    val id: String,
+    val label: String,
+    val categoryId: String? = null,
+    val brand: String? = null,
+    val matchTags: List<String> = emptyList(),
+    val points: Int = 10,
+    val japaneseLabel: String? = null,
+)
+
 /** JSON configuration shared by export and import; defaults are encoded so `schema_version` is always present. */
 val MementoBackupJson: Json = Json {
     prettyPrint = true
@@ -92,15 +129,67 @@ val MementoBackupJson: Json = Json {
     ignoreUnknownKeys = true
 }
 
-/** Snapshots [mementos] into a versioned backup envelope stamped with [exportedAt]. */
-fun backupV1(mementos: List<Memento>, exportedAt: Instant): MementoBackupV1 = MementoBackupV1(
+/** Snapshots [mementos] and [collections] into a versioned backup envelope stamped with [exportedAt]. */
+fun backupV1(
+    mementos: List<Memento>,
+    exportedAt: Instant,
+    collections: List<Collection> = emptyList(),
+): MementoBackupV1 = MementoBackupV1(
     schemaVersion = MementoBackupV1.SCHEMA_VERSION,
     exportedAt = exportedAt.toString(),
     mementos = mementos.map { it.toBackupMemento() },
+    collections = collections.map { it.toBackupCollection() },
 )
 
 /** Converts a decoded backup envelope back into domain [Memento]s. */
 fun MementoBackupV1.toMementos(): List<Memento> = mementos.map { it.toMemento() }
+
+/** Converts a decoded backup envelope back into domain [Collection]s. */
+fun MementoBackupV1.toCollections(): List<Collection> = collections.map { it.toCollection() }
+
+/** Maps a domain collection onto its serializable backup representation. */
+fun Collection.toBackupCollection(): BackupCollection = BackupCollection(
+    id = id.value,
+    name = name,
+    description = description,
+    categories = categories.map { BackupCollectionCategory(it.id, it.name, it.bonusPoints) },
+    items = items.map {
+        BackupChecklistItem(
+            id = it.id,
+            label = it.label,
+            categoryId = it.categoryId,
+            brand = it.brand,
+            matchTags = it.matchTags,
+            points = it.points,
+            japaneseLabel = it.japaneseLabel,
+        )
+    },
+    createdAt = createdAt.toString(),
+    metaAchievementName = metaAchievementName,
+    metaAchievementDescription = metaAchievementDescription,
+)
+
+/** Reconstructs the domain collection, letting the domain invariants validate the payload. */
+fun BackupCollection.toCollection(): Collection = Collection(
+    id = CollectionId(id),
+    name = name,
+    description = description,
+    categories = categories.map { CollectionCategory(it.id, it.name, it.bonusPoints) },
+    items = items.map {
+        ChecklistItem(
+            id = it.id,
+            label = it.label,
+            categoryId = it.categoryId,
+            brand = it.brand,
+            matchTags = it.matchTags,
+            points = it.points,
+            japaneseLabel = it.japaneseLabel,
+        )
+    },
+    createdAt = Instant.parse(createdAt),
+    metaAchievementName = metaAchievementName,
+    metaAchievementDescription = metaAchievementDescription,
+)
 
 /** Maps a domain aggregate onto its serializable backup representation. */
 fun Memento.toBackupMemento(): BackupMemento = BackupMemento(

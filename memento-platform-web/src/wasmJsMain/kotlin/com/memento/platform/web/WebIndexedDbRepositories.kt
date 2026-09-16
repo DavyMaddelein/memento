@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -47,10 +49,16 @@ class WebIndexedDbMementoRepository(
         }
     }
 
-    override fun observeAllMementos(): Flow<List<Memento>> =
-        state.map { snapshot -> snapshot.values.sortedByDescending { it.occurredAt } }
+    override fun observeAllMementos(): Flow<List<Memento>> = flow {
+        // Wait for the initial IndexedDB read so collectors never observe a transient empty state.
+        awaitReady()
+        emitAll(state.map { snapshot -> snapshot.values.sortedByDescending { it.occurredAt } })
+    }
 
-    override fun observeMemento(id: MementoId): Flow<Memento?> = state.map { it[id] }
+    override fun observeMemento(id: MementoId): Flow<Memento?> = flow {
+        awaitReady()
+        emitAll(state.map { it[id] })
+    }
 
     override suspend fun getMemento(id: MementoId): Memento? {
         awaitReady()
@@ -139,10 +147,16 @@ class WebIndexedDbCollectionRepository(
         }
     }
 
-    override fun observeCollections(): Flow<List<Collection>> =
-        state.map { snapshot -> snapshot.values.sortedBy { it.name.lowercase() } }
+    override fun observeCollections(): Flow<List<Collection>> = flow {
+        // Wait for the initial IndexedDB read so collectors never observe a transient empty state.
+        awaitReady()
+        emitAll(state.map { snapshot -> snapshot.values.sortedBy { it.name.lowercase() } })
+    }
 
-    override fun observeCollection(id: CollectionId): Flow<Collection?> = state.map { it[id] }
+    override fun observeCollection(id: CollectionId): Flow<Collection?> = flow {
+        awaitReady()
+        emitAll(state.map { it[id] })
+    }
 
     override suspend fun getCollection(id: CollectionId): Collection? {
         awaitReady()

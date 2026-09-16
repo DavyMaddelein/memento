@@ -48,8 +48,9 @@ fun MementoCard(
     var expanded by remember { mutableStateOf(false) }
     val notes = memento.tastingNotes?.text.orEmpty()
     val hasNotes = notes.isNotBlank()
+    val hasReflection = memento.reflection.isNotBlank()
     val hasTags = memento.tags.isNotEmpty()
-    val hasDetails = hasNotes || hasTags
+    val hasDetails = hasNotes || hasReflection || hasTags
     val rating = memento.rating
 
     MementoCardShell(
@@ -123,6 +124,13 @@ fun MementoCard(
                         if (hasNotes) {
                             Text(
                                 text = notes,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (hasReflection) {
+                            Text(
+                                text = memento.reflection,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

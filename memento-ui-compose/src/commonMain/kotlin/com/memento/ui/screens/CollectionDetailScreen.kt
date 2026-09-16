@@ -64,6 +64,9 @@ import com.memento.ui.theme.tierContainer
 private val TextPrimary = Color(0xFFF1EAD9)
 private val TextMuted = Color(0xFFA99F8C)
 
+/** Upper bound on achievements listed by the celebration overlay before it collapses to a count. */
+private const val MAX_CELEBRATIONS_SHOWN = 5
+
 /**
  * Achievement-style detail view for a curated collection. Renders the collection's earned points,
  * a pinned meta achievement and one card per achievement, tier by tier. Stateless — every action is
@@ -670,7 +673,7 @@ private fun CelebrationOverlay(
                     modifier = Modifier.weight(1f),
                 )
             }
-            achievements.forEach { achievement ->
+            achievements.take(MAX_CELEBRATIONS_SHOWN).forEach { achievement ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -688,6 +691,13 @@ private fun CelebrationOverlay(
                         color = AchievementColors.Gold,
                     )
                 }
+            }
+            if (achievements.size > MAX_CELEBRATIONS_SHOWN) {
+                Text(
+                    text = "…and ${achievements.size - MAX_CELEBRATIONS_SHOWN} more",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextMuted,
+                )
             }
             TextButton(
                 onClick = onDismiss,

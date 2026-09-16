@@ -59,6 +59,7 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
                     label = item.label,
                     category_id = item.categoryId,
                     brand = item.brand,
+                    japanese_label = item.japaneseLabel,
                     position = index.toLong(),
                     points = item.points.toLong(),
                 )
@@ -106,6 +107,7 @@ class SQLiteCollectionRepository(driver: SqlDriver) : CollectionRepository {
                 brand = row.brand,
                 matchTags = queries.selectItemTags(collectionId, row.id).executeAsList(),
                 points = row.points.toInt(),
+                japaneseLabel = row.japanese_label,
             )
         }
 

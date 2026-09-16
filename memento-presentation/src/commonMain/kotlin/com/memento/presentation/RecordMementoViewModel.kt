@@ -37,6 +37,7 @@ import kotlinx.datetime.Instant
 data class RecordMementoUiState(
     val mementoId: MementoId? = null,
     val media: List<MediaReference> = emptyList(),
+    val removedMediaIds: List<MediaId> = emptyList(),
     val coordinates: Coordinates? = null,
     val isFetchingLocation: Boolean = false,
     val placeName: String = "",
@@ -57,6 +58,10 @@ data class RecordMementoUiState(
     val priceText: String = "",
     val currencyCode: String = "JPY",
     val availableCollections: List<Collection> = emptyList(),
+    /** Free-form reflection carried over from an edited memento; not editable in this form. */
+    val reflection: String = "",
+    /** Creation timestamp of the memento being edited, or null while creating a new one. */
+    val createdAt: Instant? = null,
 )
 
 /** Convenience-store chains and their English/Japanese aliases for reverse-geocoding resolution. */
@@ -131,9 +136,23 @@ class RecordMementoViewModel(
     }
 
     fun onRemovePhoto(mediaId: MediaId) {
-        _state.value = _state.value.copy(media = _state.value.media.filterNot { it.id == mediaId })
-        assetStore?.let { store ->
-            scope.launch { store.deleteMedia(mediaId) }
+        val current = _state.value
+        val updated = current.media.filterNot { it.id == mediaId }
+        if (updated.size == current.media.size) return
+        // A brand-new memento owns its freshly captured bytes, so removing one can delete it
+        // immediately. For an existing memento the media is still referenced by the persisted
+        // record until this edit is saved, so deletion is deferred to [onSaveClicked]; otherwise
+        // cancelling an edit would destroy a photo that is still in use.
+        if (current.mementoId == null) {
+            _state.value = current.copy(media = updated)
+            assetStore?.let { store ->
+                scope.launch { store.deleteMedia(mediaId) }
+            }
+        } else {
+            _state.value = current.copy(
+                media = updated,
+                removedMediaIds = current.removedMediaIds + mediaId,
+            )
         }
     }
 
@@ -308,10 +327,14 @@ class RecordMementoViewModel(
         scope.launch {
             mementoRepository.saveMemento(memento).fold(
                 onSuccess = {
+                    val removed = _state.value.removedMediaIds
                     _state.value = _state.value.copy(
                         isSaving = false,
                         savedMementoId = memento.id,
+                        removedMediaIds = emptyList(),
                     )
+                    // The edit is committed, so photos the user removed are now unreferenced.
+                    assetStore?.let { store -> removed.forEach { store.deleteMedia(it) } }
                 },
                 onFailure = { error ->
                     _state.value = _state.value.copy(
@@ -335,13 +358,14 @@ class RecordMementoViewModel(
         _state.value = RecordMementoUiState(
             mementoId = memento.id,
             media = memento.media,
+            removedMediaIds = emptyList(),
             coordinates = memento.coordinates,
             placeName = memento.place?.name.orEmpty(),
             brand = memento.place?.brand.orEmpty(),
             city = memento.place?.city.orEmpty(),
             title = memento.title,
             rating = memento.rating?.stars ?: 0,
-            notes = memento.tastingNotes?.text ?: memento.reflection,
+            notes = memento.tastingNotes?.text.orEmpty(),
             flavorTags = memento.tastingNotes?.flavorTags.orEmpty(),
             tags = memento.tags.map { it.value },
             collectionIds = memento.collectionIds,
@@ -349,6 +373,8 @@ class RecordMementoViewModel(
             priceText = memento.priceMinorUnits?.toString() ?: "",
             currencyCode = memento.currencyCode ?: "JPY",
             availableCollections = _state.value.availableCollections,
+            reflection = memento.reflection,
+            createdAt = memento.createdAt,
         )
     }
 
@@ -391,7 +417,7 @@ class RecordMementoViewModel(
         return Memento(
             id = id,
             title = current.title.trim(),
-            reflection = "",
+            reflection = current.reflection,
             coordinates = current.coordinates,
             place = current.placeName.trim().takeIf { it.isNotEmpty() }?.let { name ->
                 Place(
@@ -419,7 +445,7 @@ class RecordMementoViewModel(
             priceMinorUnits = current.priceText.trim().takeIf { it.isNotEmpty() }?.toLongOrNull(),
             currencyCode = current.currencyCode.trim().uppercase().takeIf { it.length == 3 },
             occurredAt = current.occurredAt,
-            createdAt = now,
+            createdAt = current.createdAt ?: now,
             updatedAt = now,
         )
     }

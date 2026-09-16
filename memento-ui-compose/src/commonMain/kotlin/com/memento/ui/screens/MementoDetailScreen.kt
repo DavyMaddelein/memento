@@ -59,6 +59,7 @@ import com.memento.ui.components.TagChipFlow
 fun MementoDetailScreen(
     memento: Memento,
     images: List<ImageBitmap?> = emptyList(),
+    collectionNames: Map<String, String> = emptyMap(),
     onBack: () -> Unit = {},
     onEdit: () -> Unit = {},
     onDelete: () -> Unit = {},
@@ -145,6 +146,16 @@ fun MementoDetailScreen(
                 }
             }
 
+            if (memento.reflection.isNotBlank()) {
+                DetailSection("Reflection") {
+                    Text(
+                        text = memento.reflection,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             if (memento.tags.isNotEmpty()) {
                 DetailSection("Tags") {
                     TagChipFlow(tags = memento.tags.map { it.value })
@@ -154,7 +165,7 @@ fun MementoDetailScreen(
             if (memento.collectionIds.isNotEmpty()) {
                 Text(
                     text = "Collections: " +
-                        memento.collectionIds.joinToString(", ") { it.value },
+                        memento.collectionIds.joinToString(", ") { collectionNames[it.value] ?: it.value },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.outline,
                 )

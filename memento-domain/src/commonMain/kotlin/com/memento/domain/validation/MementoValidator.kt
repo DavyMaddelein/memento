@@ -22,7 +22,9 @@ object MementoValidator {
                 ),
             )
         }
-        if (memento.media.isEmpty()) {
+        // A photo documents a personal moment. Collection entries, however, may record a drink the
+        // traveller already tried before using the app, so membership is enough to save without one.
+        if (memento.media.isEmpty() && memento.collectionIds.isEmpty()) {
             add(ValidationViolation(field = "media", message = "At least one photo is required"))
         }
         if (memento.currencyCode != null && memento.currencyCode.length != 3) {

@@ -19,3 +19,10 @@ data class MediaReference(
         require(mimeType.isNotBlank()) { "MediaReference mimeType must not be blank" }
     }
 }
+
+/**
+ * Every media id referenced by any of these mementos. Used to find orphaned assets: bytes whose id
+ * is absent from this set are not referenced by any keepsake and can be safely reclaimed.
+ */
+fun List<Memento>.referencedMediaIds(): Set<MediaId> =
+    flatMapTo(mutableSetOf()) { memento -> memento.media.map { it.id } }

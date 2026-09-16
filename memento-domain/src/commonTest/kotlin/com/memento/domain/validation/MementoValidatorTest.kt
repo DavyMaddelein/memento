@@ -47,6 +47,18 @@ class MementoValidatorTest {
     }
 
     @Test
+    fun collectionEntryWithoutMediaIsAllowedForBackfill() {
+        val backfilled = memento(
+            title = "BOSS Black",
+            media = emptyList(),
+            collectionIds = listOf(com.memento.domain.model.CollectionId("japan-konbini-drinks-2026")),
+        )
+
+        assertFalse(MementoValidator.validate(backfilled).any { it.field == "media" })
+        assertTrue(MementoValidator.isValid(backfilled))
+    }
+
+    @Test
     fun badCurrencyCodeYieldsViolation() {
         val invalid = memento(currencyCode = "US")
 

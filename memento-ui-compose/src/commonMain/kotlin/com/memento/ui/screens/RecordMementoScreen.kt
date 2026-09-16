@@ -90,7 +90,6 @@ private val QuickFlavors = listOf(
 fun RecordMementoScreen(
     state: RecordMementoUiState,
     images: List<ImageBitmap?> = emptyList(),
-    onAddPhoto: () -> Unit = {},
     onAddFromCamera: () -> Unit,
     onAddFromGallery: () -> Unit,
     onRemovePhoto: (MediaId) -> Unit,
@@ -185,13 +184,14 @@ fun RecordMementoScreen(
                     )
                     Text("Gallery", modifier = Modifier.padding(start = 6.dp))
                 }
-                IconButton(onClick = onAddPhoto) {
-                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add photo")
-                }
             }
             if (images.isEmpty()) {
                 Text(
-                    text = "No photos yet.",
+                    text = if (state.collectionIds.isNotEmpty()) {
+                        "No photos yet. Collection entries can be saved without a photo."
+                    } else {
+                        "No photos yet."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

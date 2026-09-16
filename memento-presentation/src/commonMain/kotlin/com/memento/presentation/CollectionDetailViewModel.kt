@@ -47,7 +47,7 @@ class CollectionDetailViewModel(
     val state: StateFlow<CollectionProgressUiState> = _state.asStateFlow()
 
     private val knownEarnedIds = mutableSetOf<String>()
-    private var earnedIdsInitialised = false
+    private var knownCollectionId: CollectionId? = null
 
     init {
         scope.launch {
@@ -61,15 +61,22 @@ class CollectionDetailViewModel(
                     else -> collections.firstOrNull()
                 }
                 val board = collection?.achievementBoard(mementos)
-                var recentlyEarned: List<Achievement> = emptyList()
+                val current = _state.value
+                var recentlyEarned: List<Achievement> = current.recentlyEarned
                 if (board != null) {
-                    if (!earnedIdsInitialised) {
+                    if (knownCollectionId != collection.id) {
+                        // Re-baseline when the observed collection changes: prior collections'
+                        // achievements must not be reported as newly earned.
+                        knownEarnedIds.clear()
                         knownEarnedIds.addAll(board.achievements.filter { it.earned }.map { it.id })
-                        earnedIdsInitialised = true
+                        knownCollectionId = collection.id
+                        recentlyEarned = emptyList()
                     } else {
                         val newlyEarned = board.achievements.filter { it.earned && it.id !in knownEarnedIds }
                         knownEarnedIds.addAll(newlyEarned.map { it.id })
-                        recentlyEarned = newlyEarned
+                        // Accumulate so an achievement earned while looking at another screen is
+                        // still celebrated when the user reaches the collection.
+                        recentlyEarned = (recentlyEarned + newlyEarned).distinctBy { it.id }
                     }
                 }
                 CollectionProgressUiState(
@@ -78,7 +85,7 @@ class CollectionDetailViewModel(
                     isLoading = false,
                     board = board,
                     recentlyEarned = recentlyEarned,
-                    hideCompleted = _state.value.hideCompleted,
+                    hideCompleted = current.hideCompleted,
                 )
             }.collect { _state.value = it }
         }
