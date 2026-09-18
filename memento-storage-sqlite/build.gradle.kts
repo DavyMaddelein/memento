@@ -17,6 +17,8 @@ kotlin {
         }
     }
     jvm()
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain.dependencies {
@@ -34,6 +36,9 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(libs.sqldelight.sqlite.driver)
+        }
+        iosMain.dependencies {
+            implementation(libs.sqldelight.native.driver)
         }
         jvmTest.dependencies {
             implementation(libs.sqldelight.sqlite.driver)

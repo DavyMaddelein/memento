@@ -11,3 +11,8 @@ captures/
 .playwright-mcp/
 kotlin-js-store/
 web_timeline.png
+
+# Xcode / iOS
+iosBuild/
+**/xcuserdata/
+*.xcuserstate
