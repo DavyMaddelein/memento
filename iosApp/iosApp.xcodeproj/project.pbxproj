@@ -250,7 +250,7 @@
 					"$(inherited)",
 					"-lsqlite3",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.memento.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rubendcm.mementodemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -283,7 +283,7 @@
 					"$(inherited)",
 					"-lsqlite3",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.memento.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rubendcm.mementodemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
