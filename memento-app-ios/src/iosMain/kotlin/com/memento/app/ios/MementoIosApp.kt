@@ -32,7 +32,10 @@ import com.memento.platform.ios.AssetStoreMediaStorageService
 import com.memento.platform.ios.IosLocationProvider
 import com.memento.platform.ios.IosPhotoPickerService
 import com.memento.platform.ios.iosReverseGeocodingService
+import com.memento.portability.ConflictPolicy
 import com.memento.portability.MediaGarbageCollector
+import com.memento.portability.ZipExportEngine
+import com.memento.portability.ZipImportEngine
 import com.memento.presentation.CollectionDetailViewModel
 import com.memento.presentation.PlacesViewModel
 import com.memento.presentation.RecordMementoViewModel
@@ -43,7 +46,9 @@ import com.memento.storage.sqlite.SQLiteAssetStore
 import com.memento.storage.sqlite.SQLiteCollectionRepository
 import com.memento.storage.sqlite.SQLiteMementoRepository
 import com.memento.ui.image.decodeImage
+import com.memento.ui.screens.BackupStatus
 import com.memento.ui.screens.CollectionDetailScreen
+import com.memento.ui.screens.ExportImportDialog
 import com.memento.ui.screens.MementoDetailScreen
 import com.memento.ui.screens.PlacesScreen
 import com.memento.ui.screens.RecordMementoScreen
@@ -99,6 +104,8 @@ private class IosAppGraph(scope: CoroutineScope) {
     val collectionViewModel = CollectionDetailViewModel(collectionRepository, mementoRepository, scope)
     val placesViewModel = PlacesViewModel(mementoRepository, scope)
 
+    val exportEngine = ZipExportEngine(assetStore)
+    val importEngine = ZipImportEngine(mementoRepository, assetStore, collectionRepository)
     val mediaGarbageCollector = MediaGarbageCollector(mementoRepository, assetStore)
 }
 
@@ -114,6 +121,8 @@ fun App() {
 
         var screen by remember { mutableStateOf<Screen>(Screen.Timeline) }
         var imageCache by remember { mutableStateOf<Map<String, ImageBitmap?>>(emptyMap()) }
+        var showBackup by remember { mutableStateOf(false) }
+        var backupStatus by remember { mutableStateOf<BackupStatus>(BackupStatus.Idle) }
         val snackbarHostState = remember { SnackbarHostState() }
 
         val timelineState by graph.timelineViewModel.state.collectAsState()
@@ -214,6 +223,10 @@ fun App() {
                             screen = Screen.Record
                         },
                         onOpenPlaces = { screen = Screen.Places },
+                        onOpenBackup = {
+                            backupStatus = BackupStatus.Idle
+                            showBackup = true
+                        },
                         onQuickCapture = {
                             graph.recordViewModel.reset()
                             screen = Screen.Record
@@ -299,6 +312,62 @@ fun App() {
                     }
                 }
             }
+        }
+
+        if (showBackup) {
+            ExportImportDialog(
+                status = backupStatus,
+                onExport = {
+                    scope.launch {
+                        backupStatus = BackupStatus.Exporting
+                        graph.exportEngine
+                            .exportAll(graph.mementoRepository, graph.collectionRepository)
+                            .fold(
+                                onSuccess = { bytes ->
+                                    shareZip(bytes, "memento-backup.zip").fold(
+                                        onSuccess = { backupStatus = BackupStatus.ExportReady(bytes) },
+                                        onFailure = { error ->
+                                            backupStatus = BackupStatus.Failed(error.message ?: "Export failed")
+                                        },
+                                    )
+                                },
+                                onFailure = { error ->
+                                    backupStatus = BackupStatus.Failed(error.message ?: "Export failed")
+                                },
+                            )
+                    }
+                },
+                onImportRequested = {
+                    scope.launch {
+                        backupStatus = BackupStatus.Importing
+                        pickZipFile().fold(
+                            onSuccess = { bytes ->
+                                graph.importEngine.import(bytes, ConflictPolicy.SkipExisting).fold(
+                                    onSuccess = { report ->
+                                        backupStatus = BackupStatus.Imported(
+                                            imported = report.imported,
+                                            skipped = report.skipped,
+                                            mediaRestored = report.mediaRestored,
+                                            collectionsImported = report.collectionsImported,
+                                            errors = report.errors,
+                                        )
+                                    },
+                                    onFailure = { error ->
+                                        backupStatus = BackupStatus.Failed(error.message ?: "Import failed")
+                                    },
+                                )
+                            },
+                            onFailure = { error ->
+                                backupStatus = BackupStatus.Failed(error.message ?: "Import failed")
+                            },
+                        )
+                    }
+                },
+                onDismiss = {
+                    showBackup = false
+                    backupStatus = BackupStatus.Idle
+                },
+            )
         }
     }
 }

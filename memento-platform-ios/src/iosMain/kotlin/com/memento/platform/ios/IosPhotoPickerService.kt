@@ -11,7 +11,11 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.Foundation.getBytes
-import platform.UIKit.UIApplication
+import platform.PhotosUI.PHPickerConfiguration
+import platform.PhotosUI.PHPickerFilter
+import platform.PhotosUI.PHPickerResult
+import platform.PhotosUI.PHPickerViewController
+import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
 import platform.UIKit.UIImagePickerController
@@ -23,17 +27,17 @@ import platform.UIKit.UIViewController
 import platform.darwin.NSObject
 
 /**
- * [PhotoPickerService] backed by [UIImagePickerController].
+ * [PhotoPickerService] backed by UIKit.
  *
- * Camera captures use the camera source; gallery selections use the photo library (single pick for
- * now). Each picked image is JPEG-encoded and persisted through [mediaStorageService]. User
- * cancellation and unavailable hardware surface as failed [Result]s.
+ * Camera captures use [UIImagePickerController]; gallery selection uses [PHPickerViewController]
+ * with multi-select enabled. Every picked image is JPEG-encoded and persisted through
+ * [mediaStorageService]. User cancellation and unavailable hardware surface as failed [Result]s.
  */
 class IosPhotoPickerService(
     private val mediaStorageService: MediaStorageService,
 ) : PhotoPickerService {
 
-    /** Strong reference: the picker's `delegate` is weak, so the delegate must be retained. */
+    /** Strong reference: the pickers' `delegate` is weak, so the delegate must be retained. */
     private var activeDelegate: NSObject? = null
 
     override suspend fun launchCamera(): Result<MediaReference> = try {
@@ -44,8 +48,8 @@ class IosPhotoPickerService(
     }
 
     override suspend fun launchGallery(): Result<List<MediaReference>> = try {
-        val image = pickImage(UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypePhotoLibrary)
-        Result.success(listOf(persist(image, "gallery")))
+        val images = presentGallery()
+        Result.success(images.mapIndexed { index, image -> persist(image, "gallery-$index") })
     } catch (throwable: Throwable) {
         Result.failure(throwable)
     }
@@ -61,10 +65,10 @@ class IosPhotoPickerService(
         ) {
             error("Camera is not available on this device")
         }
-        return presentPicker(sourceType)
+        return presentCamera(sourceType)
     }
 
-    private suspend fun presentPicker(sourceType: UIImagePickerControllerSourceType): UIImage =
+    private suspend fun presentCamera(sourceType: UIImagePickerControllerSourceType): UIImage =
         suspendCancellableCoroutine { continuation ->
             val controller = UIImagePickerController().apply { this.sourceType = sourceType }
             val delegate = object :
@@ -99,27 +103,98 @@ class IosPhotoPickerService(
             activeDelegate = delegate
             controller.delegate = delegate
 
-            val presenter = topViewController()
-            if (presenter == null) {
+            if (!present(controller)) {
                 activeDelegate = null
                 if (continuation.isActive) {
                     continuation.resumeWithException(IllegalStateException("No view controller to present from"))
                 }
                 return@suspendCancellableCoroutine
             }
-            presenter.presentViewController(controller, animated = true, completion = null)
             continuation.invokeOnCancellation {
                 controller.dismissViewControllerAnimated(true, null)
                 activeDelegate = null
             }
         }
 
-    private fun topViewController(): UIViewController? {
-        var controller = UIApplication.sharedApplication.keyWindow?.rootViewController
-        while (controller?.presentedViewController != null) {
-            controller = controller.presentedViewController
+    private suspend fun presentGallery(): List<UIImage> = suspendCancellableCoroutine { continuation ->
+        val configuration = PHPickerConfiguration().apply {
+            selectionLimit = 0L
+            filter = PHPickerFilter.imagesFilter()
         }
-        return controller
+        val controller = PHPickerViewController(configuration = configuration)
+        val delegate = object : NSObject(), PHPickerViewControllerDelegateProtocol {
+            override fun picker(picker: PHPickerViewController, didFinishPicking: List<*>) {
+                picker.dismissViewControllerAnimated(true, null)
+                activeDelegate = null
+                val results = didFinishPicking.filterIsInstance<PHPickerResult>()
+                if (results.isEmpty()) {
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(IllegalStateException("Photo picking was cancelled"))
+                    }
+                    return
+                }
+                loadImages(results) { result ->
+                    if (continuation.isActive) {
+                        result.fold(
+                            onSuccess = { continuation.resume(it) },
+                            onFailure = { continuation.resumeWithException(it) },
+                        )
+                    }
+                }
+            }
+        }
+        activeDelegate = delegate
+        controller.delegate = delegate
+
+        if (!present(controller)) {
+            activeDelegate = null
+            if (continuation.isActive) {
+                continuation.resumeWithException(IllegalStateException("No view controller to present from"))
+            }
+            return@suspendCancellableCoroutine
+        }
+        continuation.invokeOnCancellation {
+            controller.dismissViewControllerAnimated(true, null)
+            activeDelegate = null
+        }
+    }
+
+    /** Loads [results] one after another (callback-chained) and reports them as a list. */
+    private fun loadImages(
+        results: List<PHPickerResult>,
+        onComplete: (Result<List<UIImage>>) -> Unit,
+    ) {
+        val images = ArrayList<UIImage>(results.size)
+        fun loadAt(index: Int) {
+            if (index >= results.size) {
+                onComplete(Result.success(images))
+                return
+            }
+            results[index].itemProvider.loadDataRepresentationForTypeIdentifier("public.image") { data, error ->
+                val image = data?.let { UIImage(data = it) }
+                when {
+                    error != null -> onComplete(
+                        Result.failure(IllegalStateException("Could not read a selected photo: ${error.localizedDescription}")),
+                    )
+
+                    image == null -> onComplete(
+                        Result.failure(IllegalStateException("Could not decode a selected photo")),
+                    )
+
+                    else -> {
+                        images += image
+                        loadAt(index + 1)
+                    }
+                }
+            }
+        }
+        loadAt(0)
+    }
+
+    private fun present(controller: UIViewController): Boolean {
+        val presenter = topViewController() ?: return false
+        presenter.presentViewController(controller, animated = true, completion = null)
+        return true
     }
 
     private fun UIImage.toJpegBytes(): ByteArray? {
